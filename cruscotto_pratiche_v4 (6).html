@@ -1,0 +1,2385 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cruscotto — Pratiche & Linee</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap');
+:root {
+  --bg:#0d0f14; --surface:#161820; --surface2:#1e2130; --border:#2a2f45;
+  --accent:#4f9cf9; --accent2:#f97b4f; --accent3:#4ff9a3; --accent4:#f9d74f;
+  --text:#e8eaf0; --dim:#7c8399; --red:#f94f6e; --purple:#b47ff9; --cyan:#4ff9f9;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* HEADER */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200}
+.logo{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--accent);letter-spacing:2px;text-transform:uppercase}
+.logo span{color:var(--dim)}
+
+/* UPLOAD */
+#upload-section{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 56px);padding:40px}
+.upload-box{border:2px dashed var(--border);border-radius:16px;padding:60px 80px;text-align:center;cursor:pointer;transition:all .3s;background:var(--surface);max-width:560px;width:100%}
+.upload-box:hover,.upload-box.dragover{border-color:var(--accent);background:rgba(79,156,249,.05)}
+.upload-icon{font-size:48px;margin-bottom:20px;display:block}
+.upload-title{font-size:22px;font-weight:700;margin-bottom:8px}
+.upload-sub{font-size:14px;color:var(--dim);margin-bottom:24px;line-height:1.6}
+
+/* LOADING */
+#loading{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 56px);gap:20px}
+.spinner{width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* BTN */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;border:none;font-family:inherit}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:#3a8ee8}
+.btn-ghost{background:transparent;color:var(--dim);border:1px solid var(--border)}.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+
+/* DASHBOARD */
+#dashboard{display:none;padding:24px 28px;max-width:1600px;margin:0 auto}
+
+/* KPI */
+.kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:24px}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.kpi-card.blue::before{background:var(--accent)}.kpi-card.orange::before{background:var(--accent2)}
+.kpi-card.green::before{background:var(--accent3)}.kpi-card.yellow::before{background:var(--accent4)}
+.kpi-card.red::before{background:var(--red)}
+.kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);margin-bottom:6px;font-family:'IBM Plex Mono',monospace}
+.kpi-value{font-size:24px;font-weight:700;line-height:1;margin-bottom:3px}
+.kpi-sub{font-size:11px;color:var(--dim)}
+
+/* FILTRI MULTI-SELECT */
+.filters-wrap{margin-bottom:18px}
+.filters-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;margin-bottom:8px}
+.filter-group{position:relative}
+.filter-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:'IBM Plex Sans',sans-serif;color:var(--text);cursor:pointer;white-space:nowrap;transition:all .2s;user-select:none;line-height:1}
+.filter-btn:hover{border-color:var(--accent)}
+.filter-btn.active{border-color:var(--accent);background:rgba(79,156,249,.12);color:var(--accent)}
+.filter-btn .cnt{background:var(--accent);color:#fff;border-radius:20px;padding:1px 6px;font-size:10px;font-weight:700;min-width:18px;text-align:center;line-height:1.4}
+.filter-btn .arr{font-size:8px;color:var(--dim);transition:transform .2s;margin-left:1px}
+.filter-btn.open .arr{transform:rotate(180deg)}
+.filter-dropdown{position:absolute;top:calc(100% + 5px);left:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;min-width:210px;z-index:600;box-shadow:0 8px 32px rgba(0,0,0,.6);display:none;overflow:hidden}
+.filter-dropdown.show{display:block}
+.fd-head{display:flex;justify-content:space-between;align-items:center;padding:9px 12px 8px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.fd-title{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);font-family:'IBM Plex Mono',monospace}
+.fd-acts{display:flex;gap:10px}
+.fd-acts button{font-size:10px;color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;padding:0;opacity:.8}
+.fd-acts button:hover{opacity:1;text-decoration:underline}
+.fd-opts{max-height:210px;overflow-y:auto;padding:4px 0}
+.fd-opts::-webkit-scrollbar{width:3px}
+.fd-opts::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.fd-opt{display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;transition:background .12s;font-size:12px;color:var(--text)}
+.fd-opt:hover{background:rgba(79,156,249,.08)}
+.fd-opt.is-checked{color:var(--accent)}
+.fd-opt input[type=checkbox]{appearance:none;width:13px;height:13px;border:1.5px solid var(--border);border-radius:3px;background:var(--surface2);cursor:pointer;flex-shrink:0;position:relative;transition:all .15s}
+.fd-opt input[type=checkbox]:checked{background:var(--accent);border-color:var(--accent)}
+.fd-opt input[type=checkbox]:checked::after{content:'✓';position:absolute;top:-2px;left:1px;font-size:10px;color:#fff;font-weight:700}
+.chips-bar{display:flex;flex-wrap:wrap;gap:5px;min-height:4px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 4px 3px 9px;background:rgba(79,156,249,.13);border:1px solid rgba(79,156,249,.3);border-radius:20px;font-size:11px;color:var(--accent)}
+.chip-x{background:none;border:none;color:var(--accent);cursor:pointer;font-size:13px;line-height:1;padding:0 3px;opacity:.6;font-family:inherit}
+.chip-x:hover{opacity:1}
+.filter-right{display:flex;gap:8px;margin-left:auto;align-items:center}
+
+/* HEADER NAV */
+.nav-tabs{display:flex;gap:2px;margin-left:24px}
+.nav-tab{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;padding:6px 14px;border-radius:6px;cursor:pointer;border:none;background:transparent;color:var(--dim);transition:all .2s}
+.nav-tab:hover{color:var(--text)}
+.nav-tab.active{background:rgba(79,156,249,.15);color:var(--accent);border:1px solid rgba(79,156,249,.3)}
+.section-header{display:flex;align-items:center;gap:12px;margin:32px 0 16px}
+.section-title{font-size:15px;font-weight:700;white-space:nowrap}
+.section-line{flex:1;height:1px;background:var(--border)}
+.section-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px;white-space:nowrap}
+
+/* GRID LAYOUT */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:18px}
+.grid-1{margin-bottom:18px}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px}
+.card-title{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--dim);font-family:'IBM Plex Mono',monospace;margin-bottom:3px}
+.card-subtitle{font-size:14px;font-weight:700;margin-bottom:16px}
+
+/* CHART */
+.chart-wrap{position:relative;height:260px}
+.chart-wrap.tall{height:340px}
+.chart-wrap.short{height:200px}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{text-align:left;padding:8px 10px;font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);border-bottom:1px solid var(--border);white-space:nowrap;background:var(--surface2)}
+tbody td{padding:8px 10px;border-bottom:1px solid rgba(42,47,69,.4);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none;font-weight:700;background:rgba(79,156,249,.06);color:var(--accent)}
+tbody tr:hover td{background:rgba(79,156,249,.04)}
+.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px}
+.perc{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px}
+
+/* BADGE */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+
+/* INFO BAR */
+.info-bar{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--dim);margin-bottom:18px;font-family:'IBM Plex Mono',monospace}
+.info-bar strong{color:var(--accent)}
+
+/* EXPORT */
+.export-bar{display:flex;gap:8px;justify-content:flex-end;margin-bottom:20px}
+
+@media(max-width:1000px){.grid-2,.grid-3{grid-template-columns:1fr}#dashboard{padding:14px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;align-items:center">
+    <div class="logo">Cruscotto <span>//</span></div>
+    <nav class="nav-tabs" id="nav-tabs" style="display:none">
+      <button class="nav-tab active" id="tab-pratiche" onclick="switchTab('pratiche')">Pratiche</button>
+      <button class="nav-tab" id="tab-linee" onclick="switchTab('linee')">Linee</button>
+      <button class="nav-tab" id="tab-mov" onclick="switchTab('mov')">Movimentazione</button>
+    </nav>
+  </div>
+  <div id="header-actions" style="display:none;gap:10px;align-items:center;min-width:0">
+    <span id="header-file" style="font-size:11px;color:var(--dim);font-family:'IBM Plex Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px"></span>
+    <button class="btn btn-ghost" onclick="saveSnapshot()" style="flex-shrink:0;border-color:var(--accent3);color:var(--accent3)" title="Salva questo file HTML con i dati già caricati">💾 Salva</button>
+    <button class="btn btn-ghost" onclick="resetApp()" style="flex-shrink:0">⬆ Carica altro</button>
+  </div>
+</header>
+
+<!-- UPLOAD -->
+<div id="upload-section">
+  <div class="upload-box" id="dropzone">
+    <span class="upload-icon">📊</span>
+    <div class="upload-title">Carica il file del gestionale</div>
+    <div class="upload-sub">Trascina il file Excel o clicca per selezionarlo<br><small style="color:var(--dim)">Colonne attese: Portafoglio, Lotto, NDG Pratica, Nominativo, Residuo credito…</small></div>
+    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">📁 Seleziona file Excel</button>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none">
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="spinner"></div>
+  <div style="color:var(--dim);font-family:'IBM Plex Mono',monospace;font-size:12px">Elaborazione dati in corso…</div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="kpi-strip" id="kpi-strip"></div>
+  <div class="info-bar" id="info-bar"></div>
+
+  <!-- FILTRI MULTI-SELECT -->
+  <div class="filters-wrap">
+    <div class="filters-bar" id="filters-bar">
+      <!-- generati da JS -->
+      <div class="filter-right">
+        <button class="btn btn-ghost" onclick="resetFilters()">✕ Reset</button>
+        <button class="btn btn-ghost" onclick="exportCSV()">⬇ XLSX</button>
+        <button class="btn btn-ghost" onclick="window.print()">🖨 PDF</button>
+      </div>
+    </div>
+    <div class="chips-bar" id="chips-bar"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- SEZIONE: FASCIA IMPORTO                                           -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="section-header">
+    <div class="section-title">Fascia Importo</div>
+    <div class="section-tag">GBV · Pratiche · Incassato</div>
+    <div class="section-line"></div>
+  </div>
+
+  <!-- Tabella fascia importo -->
+  <div class="grid-1">
+    <div class="card">
+      <div class="card-title">Tabella riepilogativa</div>
+      <div class="card-subtitle">Fascia Importo — GBV, Debito Residuo, Incassato, N. Pratiche</div>
+      <div class="tbl-wrap"><table id="tbl-fascia"></table></div>
+    </div>
+  </div>
+
+  <!-- 3 grafici fascia importo -->
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title">Grafico linea</div>
+      <div class="card-subtitle">GBV per fascia</div>
+      <div class="chart-wrap short"><canvas id="chart-fascia-gbv-line"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Grafico linea</div>
+      <div class="card-subtitle">N. Pratiche per fascia</div>
+      <div class="chart-wrap short"><canvas id="chart-fascia-n-line"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Grafico combinato</div>
+      <div class="card-subtitle">GBV + N. Pratiche (doppio asse)</div>
+      <div class="chart-wrap short"><canvas id="chart-fascia-combo"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- SEZIONE: STATO                                                    -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="section-header">
+    <div class="section-title">Stato Pratica</div>
+    <div class="section-tag">GBV · Pratiche · Incassato</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Tabella</div>
+      <div class="card-subtitle">Stato — GBV, Debito Residuo, Incassato, N. Pratiche</div>
+      <div class="tbl-wrap"><table id="tbl-stato"></table></div>
+    </div>
+    <div class="grid-1" style="display:flex;flex-direction:column;gap:18px">
+      <div class="card" style="flex:1">
+        <div class="card-title">Distribuzione GBV</div>
+        <div class="card-subtitle">Stato per GBV</div>
+        <div class="chart-wrap"><canvas id="chart-stato-gbv"></canvas></div>
+      </div>
+      <div class="card" style="flex:1">
+        <div class="card-title">Distribuzione N. Pratiche</div>
+        <div class="card-subtitle">Stato per N. Pratiche</div>
+        <div class="chart-wrap"><canvas id="chart-stato-n"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- SEZIONE: PRESENZA NOTE · SCADENZE · LAVORAZIONI                  -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="section-header">
+    <div class="section-title">Presenza Note / Scadenze / Lavorazioni</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title">Tabella</div>
+      <div class="card-subtitle">Presenza Note</div>
+      <div class="tbl-wrap"><table id="tbl-note"></table></div>
+      <div style="margin-top:16px"><div class="chart-wrap short"><canvas id="chart-note"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Tabella</div>
+      <div class="card-subtitle">Presenza Scadenze</div>
+      <div class="tbl-wrap"><table id="tbl-scadenze"></table></div>
+      <div style="margin-top:16px"><div class="chart-wrap short"><canvas id="chart-scadenze"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Tabella</div>
+      <div class="card-subtitle">Anno Ultima Lavorazione</div>
+      <div class="tbl-wrap"><table id="tbl-lavorazioni"></table></div>
+      <div style="margin-top:16px"><div class="chart-wrap short"><canvas id="chart-lavorazioni"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- SEZIONE: FASCIA ETÀ · AREA GEOGRAFICA                            -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="section-header">
+    <div class="section-title">Fascia Età / Area Geografica</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Tabella</div>
+      <div class="card-subtitle">Fascia Età — GBV, Debito Residuo, Incassato, N. Pratiche</div>
+      <div class="tbl-wrap"><table id="tbl-eta"></table></div>
+      <div style="margin-top:16px"><div class="chart-wrap"><canvas id="chart-eta"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Tabella</div>
+      <div class="card-subtitle">Area Geografica — GBV, Debito Residuo, Incassato, N. Pratiche</div>
+      <div class="tbl-wrap"><table id="tbl-area"></table></div>
+      <div style="margin-top:16px"><div class="chart-wrap"><canvas id="chart-area"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- SEZIONE: CF / NDG DUPLICATI                                       -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="section-header">
+    <div class="section-title">C.F. / NDG in altri lotti</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Tabella</div>
+      <div class="card-subtitle">Presenza C.F. in altri lotti</div>
+      <div class="tbl-wrap"><table id="tbl-cf"></table></div>
+      <div style="margin-top:16px"><div class="chart-wrap short"><canvas id="chart-cf"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Tabella</div>
+      <div class="card-subtitle">Presenza NDG in altri lotti</div>
+      <div class="tbl-wrap"><table id="tbl-ndg"></table></div>
+      <div style="margin-top:16px"><div class="chart-wrap short"><canvas id="chart-ndg"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- SEZIONE: PORTAFOGLIO-LOTTO                                        -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="section-header">
+    <div class="section-title">Portafoglio — Lotto</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-1">
+    <div class="card">
+      <div class="card-title">Tabella riepilogativa</div>
+      <div class="card-subtitle">Distribuzione per Portafoglio-Lotto — GBV, Debito Residuo, Incassato, N. Pratiche</div>
+      <div class="tbl-wrap"><table id="tbl-portafoglio"></table></div>
+    </div>
+  </div>
+  <div class="grid-1">
+    <div class="card">
+      <div class="card-title">Grafico</div>
+      <div class="card-subtitle">N. Pratiche per Portafoglio-Lotto</div>
+      <div class="chart-wrap tall"><canvas id="chart-portafoglio"></canvas></div>
+    </div>
+  </div>
+
+</div><!-- /dashboard -->
+
+<!-- DASHBOARD LINEE -->
+<div id="dashboard-linee" style="display:none;padding:24px 28px;max-width:1600px;margin:0 auto">
+  <div class="kpi-strip" id="kpi-strip-linee"></div>
+  <div class="info-bar" id="info-bar-linee"></div>
+
+  <div class="filters-wrap">
+    <div class="filters-bar" id="filters-bar-linee">
+      <div class="filter-right">
+        <button class="btn btn-ghost" onclick="resetFiltersLinee()">✕ Reset</button>
+        <button class="btn btn-ghost" onclick="exportCSVLinee()">⬇ XLSX</button>
+        <button class="btn btn-ghost" onclick="window.print()">🖨 PDF</button>
+      </div>
+    </div>
+    <div class="chips-bar" id="chips-bar-linee"></div>
+  </div>
+
+  <!-- TRIMESTRE -->
+  <div class="section-header">
+    <div class="section-title">Trimestre di Assegnazione</div>
+    <div class="section-tag">Capitale · Residuo · Incassato · N.Linee</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Tabella</div>
+      <div class="card-subtitle">Riepilogo per trimestre</div>
+      <div class="tbl-wrap"><table id="tbl-l-trimestre"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Grafico</div>
+      <div class="card-subtitle">N. Linee per trimestre</div>
+      <div class="chart-wrap tall"><canvas id="chart-l-trimestre"></canvas></div>
+    </div>
+  </div>
+
+  <!-- PRESCRIZIONE -->
+  <div class="section-header">
+    <div class="section-title">Prescrizione</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Tabella</div>
+      <div class="card-subtitle">Data Prescrizione presente</div>
+      <div class="tbl-wrap"><table id="tbl-l-presc-ins"></table></div>
+      <div style="margin-top:16px"><div class="chart-wrap short"><canvas id="chart-l-presc-ins"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Tabella</div>
+      <div class="card-subtitle">Prescritta (data &lt; oggi)</div>
+      <div class="tbl-wrap"><table id="tbl-l-prescritta"></table></div>
+      <div style="margin-top:16px"><div class="chart-wrap short"><canvas id="chart-l-prescritta"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- FASCIA IMPORTO LINEE -->
+  <div class="section-header">
+    <div class="section-title">Fascia Importo</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-1">
+    <div class="card">
+      <div class="card-title">Tabella</div>
+      <div class="card-subtitle">Fascia Importo — Capitale, Residuo, Incassato, N. Linee</div>
+      <div class="tbl-wrap"><table id="tbl-l-fascia"></table></div>
+    </div>
+  </div>
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title">Grafico linea</div>
+      <div class="card-subtitle">Capitale per fascia</div>
+      <div class="chart-wrap short"><canvas id="chart-l-fascia-cap"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Grafico linea</div>
+      <div class="card-subtitle">N. Linee per fascia</div>
+      <div class="chart-wrap short"><canvas id="chart-l-fascia-n"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Combinato</div>
+      <div class="card-subtitle">Capitale + N. Linee</div>
+      <div class="chart-wrap short"><canvas id="chart-l-fascia-combo"></canvas></div>
+    </div>
+  </div>
+
+  <!-- STATO LINEE -->
+  <div class="section-header">
+    <div class="section-title">Stato Linea</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Tabella</div>
+      <div class="card-subtitle">Stato — Capitale, Residuo, Incassato, N. Linee</div>
+      <div class="tbl-wrap"><table id="tbl-l-stato"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Grafico</div>
+      <div class="card-subtitle">N. Linee per stato</div>
+      <div class="chart-wrap"><canvas id="chart-l-stato"></canvas></div>
+    </div>
+  </div>
+
+  <!-- TIPO LINEA -->
+  <div class="section-header">
+    <div class="section-title">Tipo Linea di Credito</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Tabella</div>
+      <div class="card-subtitle">Tipo — Capitale, Residuo, Incassato, N. Linee</div>
+      <div class="tbl-wrap"><table id="tbl-l-tipo"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Grafico</div>
+      <div class="card-subtitle">N. Linee per tipo</div>
+      <div class="chart-wrap"><canvas id="chart-l-tipo"></canvas></div>
+    </div>
+  </div>
+
+  <!-- AREA GEO LINEE -->
+  <div class="section-header">
+    <div class="section-title">Area Geografica</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Tabella</div>
+      <div class="card-subtitle">Area — Capitale, Residuo, Incassato, N. Linee</div>
+      <div class="tbl-wrap"><table id="tbl-l-area"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Grafico</div>
+      <div class="card-subtitle">N. Linee per area</div>
+      <div class="chart-wrap"><canvas id="chart-l-area"></canvas></div>
+    </div>
+  </div>
+
+  <!-- PORTAFOGLIO LINEE -->
+  <div class="section-header">
+    <div class="section-title">Portafoglio — Lotto</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-1">
+    <div class="card">
+      <div class="card-title">Tabella</div>
+      <div class="card-subtitle">Portafoglio-Lotto — Capitale, Residuo, Incassato, N. Linee, % Recupero</div>
+      <div class="tbl-wrap"><table id="tbl-l-portafoglio"></table></div>
+    </div>
+  </div>
+  <div class="grid-1">
+    <div class="card">
+      <div class="card-title">Grafico</div>
+      <div class="card-subtitle">N. Linee per Portafoglio-Lotto</div>
+      <div class="chart-wrap tall"><canvas id="chart-l-portafoglio"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD MOVIMENTAZIONE -->
+<div id="dashboard-mov" style="display:none;padding:24px 28px;max-width:1600px;margin:0 auto">
+  <div class="kpi-strip" id="kpi-strip-mov"></div>
+  <div class="info-bar" id="info-bar-mov"></div>
+
+  <div class="filters-wrap">
+    <div class="filters-bar" id="filters-bar-mov">
+      <div class="filter-right">
+        <button class="btn btn-ghost" onclick="resetFiltersMov()">✕ Reset</button>
+        <button class="btn btn-ghost" onclick="exportCSVMov()">⬇ XLSX</button>
+        <button class="btn btn-ghost" onclick="window.print()">🖨 PDF</button>
+      </div>
+    </div>
+    <div class="chips-bar" id="chips-bar-mov"></div>
+  </div>
+
+  <!-- ULTIMA ATTIVITÀ -->
+  <div class="section-header">
+    <div class="section-title">Ultima Attività Pratica</div>
+    <div class="section-tag">Max tra nota · scadenza · lavorazione</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Distribuzione per anno</div>
+      <div class="card-subtitle">Ultima Attività — N. Pratiche per anno</div>
+      <div class="tbl-wrap"><table id="tbl-m-ult-att"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Grafico</div>
+      <div class="card-subtitle">N. Pratiche per anno ultima attività</div>
+      <div class="chart-wrap"><canvas id="chart-m-ult-att"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ULTIMA NOTA -->
+  <div class="section-header">
+    <div class="section-title">Ultima Nota Pratica</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Distribuzione per anno</div>
+      <div class="card-subtitle">Ultima Nota — N. Pratiche per anno</div>
+      <div class="tbl-wrap"><table id="tbl-m-nota"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Grafico</div>
+      <div class="card-subtitle">N. Pratiche per anno ultima nota</div>
+      <div class="chart-wrap"><canvas id="chart-m-nota"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ULTIMA SCADENZA -->
+  <div class="section-header">
+    <div class="section-title">Prossima / Ultima Scadenza Pratica</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Distribuzione per anno</div>
+      <div class="card-subtitle">Scadenza — N. Pratiche per anno</div>
+      <div class="tbl-wrap"><table id="tbl-m-scad"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Grafico</div>
+      <div class="card-subtitle">N. Pratiche per anno scadenza</div>
+      <div class="chart-wrap"><canvas id="chart-m-scad"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ULTIMA LAVORAZIONE -->
+  <div class="section-header">
+    <div class="section-title">Ultima Lavorazione</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Distribuzione per anno</div>
+      <div class="card-subtitle">Ultima Lavorazione — N. Pratiche per anno</div>
+      <div class="tbl-wrap"><table id="tbl-m-lav"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Grafico</div>
+      <div class="card-subtitle">N. Pratiche per anno ultima lavorazione</div>
+      <div class="chart-wrap"><canvas id="chart-m-lav"></canvas></div>
+    </div>
+  </div>
+
+  <!-- TABELLA DETTAGLIO PRATICHE -->
+  <div class="section-header">
+    <div class="section-title">Dettaglio per Pratica</div>
+    <div class="section-tag">Tutte le date per NDG</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid-1">
+    <div class="card">
+      <div class="card-title">Tabella completa</div>
+      <div class="card-subtitle">Ultima Nota · Ultima Scadenza · Ultima Lavorazione · Ultima Attività per pratica</div>
+      <div class="tbl-wrap" style="max-height:520px;overflow-y:auto"><table id="tbl-m-dettaglio"></table></div>
+    </div>
+  </div>
+</div>
+<script>
+const C = {
+  blue:'#4f9cf9', orange:'#f97b4f', green:'#4ff9a3', yellow:'#f9d74f',
+  red:'#f94f6e', purple:'#b47ff9', cyan:'#4ff9f9', pink:'#f94fb5', gray:'#555'
+};
+const PAL = Object.values(C);
+
+// Chart.js defaults
+Chart.defaults.color = '#7c8399';
+Chart.defaults.font.family = 'IBM Plex Sans';
+
+// ─── GLOBALS ───────────────────────────────────────────────────────────────
+let RAW = [];
+let PRAT = [];
+let RAW_HEADERS_LINEE = [];   // intestazioni originali del foglio Dati linee
+let RAW_ROWS_LINEE = [];      // righe grezze originali del foglio Dati linee
+let RAW_NDG_COL = -1;         // indice colonna NDG nelle righe grezze
+let RAW_EXCEL_B64 = '';       // buffer Excel originale in base64 per snapshot
+let HTML_SOURCE = '';         // sorgente HTML pulito (catturato all'avvio)
+// Cattura subito il sorgente prima che qualsiasi JS modifichi il DOM
+HTML_SOURCE = document.documentElement.outerHTML;
+let CHARTS = {};
+
+// ─── UPLOAD ────────────────────────────────────────────────────────────────
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => { e.preventDefault(); dropzone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+// ─── AUTOLOAD SNAPSHOT ────────────────────────────────────────────────────
+(function checkSnapshot(){
+  if(!window.__SNAPSHOT__) return;
+  const snap = window.__SNAPSHOT__;
+  show('loading');
+  // Aspetta che SheetJS e Chart.js siano pronti (caricamento CDN asincrono)
+  function waitAndLoad(attempts){
+    if(typeof XLSX === 'undefined' || typeof Chart === 'undefined'){
+      if(attempts > 50){ console.error('Librerie non caricate'); show('upload-section'); return; }
+      setTimeout(()=>waitAndLoad(attempts+1), 100);
+      return;
+    }
+    try {
+      const bin = atob(snap.b64);
+      const buf = new ArrayBuffer(bin.length);
+      const arr = new Uint8Array(buf);
+      for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+      RAW_EXCEL_B64 = snap.b64;
+      processExcel(buf, snap.srcName || 'snapshot');
+    } catch(e){
+      console.error('Errore autoload snapshot:', e);
+      show('upload-section');
+    }
+  }
+  waitAndLoad(0);
+})();
+
+function handleFile(file) {
+  if (!file) return;
+  show('loading');
+  setTimeout(() => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        // Salva il buffer originale per lo snapshot
+        const arr = new Uint8Array(e.target.result);
+        let bin = '';
+        arr.forEach(b => bin += String.fromCharCode(b));
+        RAW_EXCEL_B64 = btoa(bin);
+        processExcel(e.target.result, file.name);
+      }
+      catch(err) { alert('Errore: ' + err.message); show('upload-section'); }
+    };
+    reader.readAsArrayBuffer(file);
+  }, 50);
+}
+
+// ─── PARSING EXCEL ─────────────────────────────────────────────────────────
+function processExcel(buffer, filename) {
+  const wb = XLSX.read(buffer, { type:'array', cellDates:true });
+
+  // Trova il foglio con i dati del gestionale
+  const EXPECTED = ['Portafoglio','Lotto','NDG','Nominativo'];
+  let ws = null;
+  for (const sname of wb.SheetNames) {
+    const s = wb.Sheets[sname];
+    const rows = XLSX.utils.sheet_to_json(s, { header:1, defval:null });
+    for (let hi = 0; hi < Math.min(15, rows.length); hi++) {
+      const r = rows[hi];
+      const matches = EXPECTED.filter(k => r && r.some(v => v && String(v).includes(k)));
+      if (matches.length >= 3) { ws = s; break; }
+    }
+    if (ws) break;
+  }
+  if (!ws) ws = wb.Sheets[wb.SheetNames[0]];
+
+  const allRows = XLSX.utils.sheet_to_json(ws, { header:1, defval:null });
+
+  // Trova header row
+  let headerIdx = 0;
+  for (let i = 0; i < Math.min(15, allRows.length); i++) {
+    const r = allRows[i];
+    if (r && r.some(v => v && (String(v).includes('Portafoglio') || String(v).includes('NDG') || String(v).includes('Nominativo')))) {
+      headerIdx = i; break;
+    }
+  }
+
+  const headers = allRows[headerIdx].map(h => h ? String(h).trim() : '');
+  const dataRows = allRows.slice(headerIdx + 1).filter(r => r && r.some(v => v !== null && v !== ''));
+
+  const fc = name => {
+    const idx = headers.findIndex(h => h && h.toLowerCase().includes(name.toLowerCase()));
+    return idx;
+  };
+
+  const COL = {
+    ndgPratica:   bestCol(headers, ['OCS / NDG Pratica','NDG Pratica','NDG pratica']),
+    portafoglio:  bestCol(headers, ['Portafoglio']),
+    lotto:        bestCol(headers, ['Lotto']),
+    nominativo:   bestCol(headers, ['Nominativo']),
+    cf:           bestCol(headers, ['Codice Fiscale','C.F.']),
+    area:         bestCol(headers, ['Area geografica','Area']),
+    capitale:     bestCol(headers, ['Capitale iniziale','Capitale']),
+    residuoCredito: bestCol(headers, ['Residuo credito']),
+    incassi:      bestCol(headers, ['Totale incassi conteggiati','Totale incassi']),
+    stato:        bestCol(headers, ['Stato']),
+    assegnatari:  bestCol(headers, ['Assegnatari','Assegnatario']),
+    dataNota:     bestCol(headers, ['Data ultima nota pratica','Data ultima nota']),
+    dataScadenza: bestCol(headers, ['Data prossima o ultima scadenza pratica','Data prossima o ultima scadenza']),
+    dataLav:      bestCol(headers, ['Data ultima lavorazione']),
+  };
+
+  RAW = dataRows.map(r => ({
+    ndgPratica:    String(r[COL.ndgPratica]  || '').trim(),
+    portafoglio:   String(r[COL.portafoglio] || '').trim(),
+    lotto:         String(r[COL.lotto]       || '').trim(),
+    nominativo:    String(r[COL.nominativo]  || '').trim().replace(/#[^#]+#/g,'').trim(),
+    cf:            String(r[COL.cf]          || '').trim(),
+    area:          String(r[COL.area]        || '').trim() || 'N/D',
+    capitale:      toN(r[COL.capitale]),
+    residuoCredito:toN(r[COL.residuoCredito]),
+    incassi:       toN(r[COL.incassi]),
+    stato:         String(r[COL.stato]       || '').trim(),
+    assegnatari:   String(r[COL.assegnatari] || '').trim(),
+    dataNota:      parseDate(r[COL.dataNota]),
+    dataScadenza:  parseDate(r[COL.dataScadenza]),
+    dataLav:       parseDate(r[COL.dataLav]),
+  })).filter(r => r.ndgPratica);
+
+  aggregatePratiche();
+
+  // Per le linee cerca esplicitamente il foglio "Dati linee" che contiene le colonne formula
+  const lineeSheetNames = ['Dati linee', 'dati linee', 'DATI LINEE', 'Linee'];
+  let wsLinee = null;
+  for (const sname of lineeSheetNames) {
+    if (wb.Sheets[sname]) { wsLinee = wb.Sheets[sname]; break; }
+  }
+  // Fallback: usa lo stesso foglio già trovato
+  if (!wsLinee) wsLinee = ws;
+  const allRowsLinee = XLSX.utils.sheet_to_json(wsLinee, { header:1, defval:null });
+  let headerIdxLinee = 0;
+  for (let i = 0; i < Math.min(5, allRowsLinee.length); i++) {
+    const r = allRowsLinee[i];
+    if (r && r.some(v => v && (String(v).includes('Portafoglio') || String(v).includes('NDG') || String(v).includes('trimestri')))) {
+      headerIdxLinee = i; break;
+    }
+  }
+  parseLinee(allRowsLinee, headerIdxLinee);
+  parseMov(allRowsLinee, headerIdxLinee);
+  // Salva righe raw originali per l'export drill-down
+  RAW_HEADERS_LINEE = allRowsLinee[headerIdxLinee].map(h => h ? String(h).trim() : '');
+  RAW_ROWS_LINEE = allRowsLinee.slice(headerIdxLinee + 1).filter(r => r && r.some(v => v !== null && v !== ''));
+  RAW_NDG_COL = RAW_HEADERS_LINEE.findIndex(h => h && (h === 'OCS / NDG Pratica' || h.includes('NDG Pratica')));
+  buildFilters();
+  initDashboard(filename);
+  initLinee();
+  initMov();
+  registerDrillsPratiche();
+  registerDrillsLinee();
+  registerDrillsMov();
+  hookAllDblClicks();
+  addDblClickHint();
+  show('dashboard');
+  document.getElementById('nav-tabs').style.display = 'flex';
+  document.getElementById('header-actions').style.display = 'flex';
+  document.getElementById('header-file').textContent = filename;
+  switchTab('pratiche');
+}
+
+// Converte un valore cella in stringa pulita, null/undefined/None -> 'N/D'
+function cleanStr(v) {
+  if (v == null) return 'N/D';
+  const s = String(v).trim();
+  return (s === '' || s === 'null' || s === 'undefined' || s === 'None') ? 'N/D' : s;
+}
+
+function bestCol(headers, candidates) {
+  for (const c of candidates) {
+    const i = headers.findIndex(h => h && h.toLowerCase().includes(c.toLowerCase()));
+    if (i >= 0) return i;
+  }
+  return -1;
+}
+function toN(v) {
+  if (v == null || v === '') return 0;
+  if (typeof v === 'number') return v;
+  const n = parseFloat(String(v).replace(/[€\s]/g,'').replace(',','.'));
+  return isNaN(n) ? 0 : n;
+}
+function parseDate(v) {
+  if (!v) return null;
+  if (v instanceof Date) return v;
+  if (typeof v === 'string') {
+    const d = new Date(v.replace(/(\d{2})\/(\d{2})\/(\d{4})/,'$3-$2-$1').substring(0,10));
+    return isNaN(d) ? null : d;
+  }
+  return null;
+}
+
+// ─── AGGREGAZIONE ──────────────────────────────────────────────────────────
+function aggregatePratiche() {
+  const map = new Map();
+
+  // Prima passata: crea pratiche
+  for (const r of RAW) {
+    const k = r.ndgPratica;
+    if (!k) continue;
+    if (!map.has(k)) {
+      map.set(k, {
+        ndgPratica: k,
+        nominativo: r.nominativo,
+        cf: r.cf,
+        portafoglio: r.portafoglio,
+        lotto: r.lotto,
+        area: r.area,
+        stato: r.stato,
+        assegnatari: r.assegnatari,
+        capitale: 0,
+        residuoCredito: 0,
+        incassi: 0,
+        dataNota: null, dataScadenza: null, dataLav: null,
+        linee: 0,
+      });
+    }
+    const p = map.get(k);
+    p.capitale      += r.capitale;
+    p.residuoCredito+= r.residuoCredito;
+    p.incassi       += r.incassi;
+    p.linee++;
+    p.dataNota    = latestDate(p.dataNota,    r.dataNota);
+    p.dataScadenza= latestDate(p.dataScadenza,r.dataScadenza);
+    p.dataLav     = latestDate(p.dataLav,     r.dataLav);
+    if (r.stato) p.stato = statoPrev(p.stato, r.stato);
+  }
+
+  // Conta CF/NDG duplicati cross-lotto
+  const cfLotti  = {};
+  const ndgLotti = {};
+  for (const r of RAW) {
+    const pl = r.portafoglio + '|' + r.lotto;
+    if (r.cf) { if (!cfLotti[r.cf]) cfLotti[r.cf] = new Set(); cfLotti[r.cf].add(pl); }
+    const pl2 = r.portafoglio + '|' + r.lotto;
+    if (r.ndgPratica) { if (!ndgLotti[r.ndgPratica]) ndgLotti[r.ndgPratica] = new Set(); ndgLotti[r.ndgPratica].add(pl2); }
+  }
+
+  PRAT = Array.from(map.values()).map(p => {
+    const eta = etaDaCF(p.cf);
+    // Split assegnatari: prende il primo (principale), pulisce spazi
+    const assegnatarioList = p.assegnatari
+      ? p.assegnatari.split(';').map(s=>s.trim()).filter(Boolean)
+      : [];
+    const assegnatario1 = assegnatarioList[0] || 'Non assegnato';
+    const assegnatario2 = assegnatarioList[1] || '';
+    return {
+      ...p,
+      assegnatario1,
+      assegnatario2,
+      gbv: p.capitale,
+      portafolioLotto: `${p.portafoglio} - ${p.lotto}`,
+      fasciaImporto: fasciaGBV(p.capitale),
+      eta,
+      fasciaEta: fasciaEta(eta),
+      hasNote:     p.dataNota     ? 'OK' : 'NO NOTE',
+      hasScadenze: p.dataScadenza ? 'OK' : 'NO SCADENZE',
+      annoLav:     p.dataLav ? p.dataLav.getFullYear() : 0,
+      cfAltriLotti:  (cfLotti[p.cf]  && cfLotti[p.cf].size  > 1) ? 2 : 1,
+      ndgAltriLotti: (ndgLotti[p.ndgPratica] && ndgLotti[p.ndgPratica].size > 1) ? 2 : 1,
+    };
+  });
+}
+
+function latestDate(a,b){ if(!a) return b; if(!b) return a; return a>b?a:b; }
+function statoPrev(s1,s2){
+  const p=['Archiviata','Gestione','Assegnata','Riassagnata','Ex rendimento','Rendimento','Proposta azione legale'];
+  const i1=p.indexOf(s1), i2=p.indexOf(s2);
+  if(i1<0) return s2; if(i2<0) return s1;
+  return i2>i1?s2:s1;
+}
+function fasciaGBV(v){
+  if(v>30000) return '1- oltre 30k';
+  if(v>20000) return '2- 20-30k';
+  if(v>10000) return '3- 10-20k';
+  if(v>3000)  return '4- 3-10k';
+  return '5- sotto i 3k';
+}
+function etaDaCF(cf){
+  if(!cf || cf.length<8) return null;
+  const aa=parseInt(cf.substring(6,8)); if(isNaN(aa)) return null;
+  const anno = aa<=(new Date().getFullYear()%100) ? 2000+aa : 1900+aa;
+  const eta = new Date().getFullYear()-anno;
+  return (eta<0||eta>110) ? null : eta;
+}
+function fasciaEta(eta){
+  if(eta===null) return 'N/D';
+  if(eta<40) return '18-40';
+  if(eta<65) return '40-65';
+  return '65+';
+}
+
+// ─── FILTRI MULTI-SELECT ──────────────────────────────────────────────────
+// Struttura: FILTER_STATE[key] = Set di valori selezionati (vuoto = tutti)
+const FILTER_DEFS = [
+  { key:'assegnatario1',  label:'1° Assegnatario' },
+  { key:'assegnatario2',  label:'2° Assegnatario' },
+  { key:'portafolioLotto', label:'Portafoglio-Lotto' },
+  { key:'stato',           label:'Stato' },
+  { key:'area',            label:'Area Geografica' },
+  { key:'fasciaImporto',   label:'Fascia Importo' },
+  { key:'fasciaEta',       label:'Fascia Età' },
+  { key:'hasNote',         label:'Note' },
+  { key:'hasScadenze',     label:'Scadenze' },
+  { key:'annoLav',         label:'Anno Lavorazione', fmt: v => v==0?'N/D':String(v) },
+];
+let FILTER_STATE = {};  // key -> Set
+
+function buildFilters(){
+  FILTER_STATE = {};
+  FILTER_DEFS.forEach(def => { FILTER_STATE[def.key] = new Set(); });
+
+  const bar = document.getElementById('filters-bar');
+  const rightBtn = bar.querySelector('.filter-right');
+
+  // Rimuovi eventuali gruppi precedenti
+  bar.querySelectorAll('.filter-group').forEach(el => el.remove());
+
+  FILTER_DEFS.forEach(def => {
+    const vals = getUniqueVals(def.key, def.fmt);
+    if(vals.length === 0) return;
+
+    const grp = document.createElement('div');
+    grp.className = 'filter-group';
+    grp.id = 'fg-' + def.key;
+
+    grp.innerHTML = `
+      <button class="filter-btn" id="fb-${def.key}" onclick="toggleDropdown('${def.key}')">
+        <span class="lbl">${def.label}</span>
+        <span class="arr">▼</span>
+      </button>
+      <div class="filter-dropdown" id="fd-${def.key}">
+        <div class="fd-head">
+          <span class="fd-title">${def.label}</span>
+          <div class="fd-acts">
+            <button onclick="selectAll('${def.key}')">Nessuno</button>
+            <button onclick="clearFilter('${def.key}')">Tutti</button>
+          </div>
+        </div>
+        <div class="fd-opts" id="fo-${def.key}">
+          ${vals.map(v=>`
+            <label class="fd-opt" id="fo-${def.key}-${CSS.escape(v)}">
+              <input type="checkbox" data-key="${def.key}" data-val="${v}" onchange="onCheck('${def.key}','${v}',this.checked)">
+              <span>${v}</span>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    bar.insertBefore(grp, rightBtn);
+  });
+
+  // Chiudi dropdown al click fuori
+  document.addEventListener('click', e => {
+    if(!e.target.closest('.filter-group')) closeAllDropdowns();
+  });
+}
+
+function getUniqueVals(key, fmt){
+  const set = new Set(PRAT.map(p => {
+    const v = p[key];
+    const s = fmt ? fmt(v) : String(v==null?'':v);
+    return s.trim() || 'Non assegnato';
+  }));
+  return [...set].filter(Boolean).sort((a,b) => {
+    if(a==='Non assegnato') return 1;
+    if(b==='Non assegnato') return -1;
+    const na=Number(a), nb=Number(b);
+    if(!isNaN(na)&&!isNaN(nb)) return na-nb;
+    return a.localeCompare(b,'it');
+  });
+}
+
+function toggleDropdown(key){
+  const fd = document.getElementById('fd-'+key);
+  const fb = document.getElementById('fb-'+key);
+  const wasOpen = fd.classList.contains('show');
+  closeAllDropdowns();
+  if(!wasOpen){ fd.classList.add('show'); fb.classList.add('open'); }
+}
+
+function closeAllDropdowns(){
+  document.querySelectorAll('.filter-dropdown').forEach(el=>el.classList.remove('show'));
+  document.querySelectorAll('.filter-btn').forEach(el=>el.classList.remove('open'));
+}
+
+function onCheck(key, val, checked){
+  // val grezzo nel dataset checkbox, ma il confronto deve usare la fmt
+  const def = FILTER_DEFS.find(d=>d.key===key);
+  // val è già la stringa formattata
+  if(checked) FILTER_STATE[key].add(val);
+  else        FILTER_STATE[key].delete(val);
+  refreshFilterBtn(key);
+  refreshChips();
+  applyFilters();
+}
+
+function selectAll(key){
+  FILTER_STATE[key].clear();
+  document.querySelectorAll(`input[data-key="${key}"]`).forEach(cb=>{
+    cb.checked=false;
+    cb.closest('.fd-opt').classList.remove('is-checked');
+  });
+  refreshFilterBtn(key);
+  refreshChips();
+  applyFilters();
+}
+
+function clearFilter(key){
+  const vals = getUniqueVals(key, FILTER_DEFS.find(d=>d.key===key)?.fmt);
+  vals.forEach(v => FILTER_STATE[key].add(v));
+  document.querySelectorAll(`input[data-key="${key}"]`).forEach(cb=>{
+    cb.checked=true;
+    cb.closest('.fd-opt').classList.add('is-checked');
+  });
+  refreshFilterBtn(key);
+  refreshChips();
+  applyFilters();
+}
+
+function refreshFilterBtn(key){
+  const cnt = FILTER_STATE[key].size;
+  const fb = document.getElementById('fb-'+key);
+  if(!fb) return;
+  const def = FILTER_DEFS.find(d=>d.key===key);
+  if(cnt===0){
+    fb.classList.remove('active');
+    fb.querySelector('.lbl').textContent = def.label;
+    const oldCnt = fb.querySelector('.cnt');
+    if(oldCnt) oldCnt.remove();
+  } else {
+    fb.classList.add('active');
+    fb.querySelector('.lbl').textContent = def.label;
+    let cntEl = fb.querySelector('.cnt');
+    if(!cntEl){ cntEl=document.createElement('span'); cntEl.className='cnt'; fb.insertBefore(cntEl, fb.querySelector('.arr')); }
+    cntEl.textContent = cnt;
+  }
+}
+
+function refreshChips(){
+  const bar = document.getElementById('chips-bar');
+  bar.innerHTML = '';
+  FILTER_DEFS.forEach(def => {
+    FILTER_STATE[def.key].forEach(val => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.innerHTML = `<span style="color:var(--dim);font-size:10px">${def.label}:</span> ${val}
+        <button class="chip-x" onclick="removeChip('${def.key}','${val}')">×</button>`;
+      bar.appendChild(chip);
+    });
+  });
+}
+
+function removeChip(key, val){
+  FILTER_STATE[key].delete(val);
+  const cb = document.querySelector(`input[data-key="${key}"][data-val="${val}"]`);
+  if(cb){ cb.checked=false; cb.closest('.fd-opt').classList.remove('is-checked'); }
+  refreshFilterBtn(key);
+  refreshChips();
+  applyFilters();
+}
+
+function getFiltered(){
+  return PRAT.filter(p => {
+    return FILTER_DEFS.every(def => {
+      if(FILTER_STATE[def.key].size === 0) return true;
+      const raw = def.fmt ? def.fmt(p[def.key]) : String(p[def.key]==null?'':p[def.key]);
+      const v = raw.trim() || 'Non assegnato';
+      return FILTER_STATE[def.key].has(v);
+    });
+  });
+}
+
+function applyFilters(){ updateAll(getFiltered()); hookAllDblClicks(); }
+
+function resetFilters(){
+  FILTER_DEFS.forEach(def => {
+    FILTER_STATE[def.key].clear();
+    document.querySelectorAll(`input[data-key="${def.key}"]`).forEach(cb=>{
+      cb.checked=false;
+      cb.closest('.fd-opt').classList.remove('is-checked');
+    });
+    refreshFilterBtn(def.key);
+  });
+  refreshChips();
+  applyFilters();
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────────────
+function initDashboard(filename){
+  const d=getFiltered();
+  document.getElementById('info-bar').innerHTML=
+    `File: <strong>${filename}</strong> — <strong>${PRAT.length}</strong> pratiche elaborate da <strong>${RAW.length}</strong> linee di credito`;
+  updateAll(d);
+}
+
+function updateAll(d){
+  updateKPI(d);
+  updateFascia(d);
+  updateStato(d);
+  updateNote(d);
+  updateScadenze(d);
+  updateLavorazioni(d);
+  updateEta(d);
+  updateArea(d);
+  updateCF(d);
+  updateNDG(d);
+  updatePortafoglio(d);
+}
+
+// ─── KPI ───────────────────────────────────────────────────────────────────
+function updateKPI(d){
+  const totGBV=sum(d,'gbv'), totRes=sum(d,'residuoCredito'), totInc=sum(d,'incassi');
+  const perc=totGBV?(totInc/totGBV*100):0;
+  document.getElementById('kpi-strip').innerHTML=`
+    <div class="kpi-card blue"><div class="kpi-label">N. Pratiche</div><div class="kpi-value">${f0(d.length)}</div><div class="kpi-sub">pratiche attive</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">GBV Totale</div><div class="kpi-value">${fM(totGBV)}</div><div class="kpi-sub">capitale iniziale</div></div>
+    <div class="kpi-card yellow"><div class="kpi-label">Debito Residuo</div><div class="kpi-value">${fM(totRes)}</div><div class="kpi-sub">residuo credito</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Incassato</div><div class="kpi-value">${fM(totInc)}</div><div class="kpi-sub">totale incassi</div></div>
+    <div class="kpi-card ${perc>10?'green':perc>5?'yellow':'red'}"><div class="kpi-label">% Recupero</div><div class="kpi-value">${perc.toFixed(1)}%</div><div class="kpi-sub">incassato / GBV</div></div>
+  `;
+}
+
+// ─── FASCIA IMPORTO ────────────────────────────────────────────────────────
+const FASCIA_ORDER = ['1- oltre 30k','2- 20-30k','3- 10-20k','4- 3-10k','5- sotto i 3k'];
+
+function updateFascia(d){
+  const rows = FASCIA_ORDER.map(f=>{
+    const sub=d.filter(p=>p.fasciaImporto===f);
+    return { label:f, gbv:sum(sub,'gbv'), res:sum(sub,'residuoCredito'), inc:sum(sub,'incassi'), n:sub.length };
+  });
+  const tot = { gbv:sum(d,'gbv'), res:sum(d,'residuoCredito'), inc:sum(d,'incassi'), n:d.length };
+
+  // Tabella
+  tbl('tbl-fascia', ['Fascia Importo','GBV','Debito Residuo','Incassato','N.Pratiche'],
+    [...rows.map(r=>[r.label, fE(r.gbv), fE(r.res), fE(r.inc), f0(r.n)]),
+     ['Totale complessivo', fE(tot.gbv), fE(tot.res), fE(tot.inc), f0(tot.n)]]
+  );
+
+  const labels = rows.map(r=>r.label);
+  const gbvVals= rows.map(r=>r.gbv);
+  const nVals  = rows.map(r=>r.n);
+
+  // Grafico GBV linea
+  mkLine('chart-fascia-gbv-line', labels,
+    [{ label:'GBV (€)', data:gbvVals, borderColor:C.blue, backgroundColor:'rgba(79,156,249,.15)', fill:true, tension:.35, pointBackgroundColor:C.blue, pointRadius:5 }],
+    { yFmt: v=>fM(v) }
+  );
+
+  // Grafico N.Pratiche linea
+  mkLine('chart-fascia-n-line', labels,
+    [{ label:'N. Pratiche', data:nVals, borderColor:C.orange, backgroundColor:'rgba(249,123,79,.15)', fill:true, tension:.35, pointBackgroundColor:C.orange, pointRadius:5 }],
+    { yFmt: v=>f0(v) }
+  );
+
+  // Grafico combo doppio asse
+  mkCombo('chart-fascia-combo', labels, gbvVals, nVals);
+}
+
+// ─── STATO ─────────────────────────────────────────────────────────────────
+function updateStato(d){
+  const groups = groupBy(d,'stato');
+  const entries = Object.entries(groups).sort((a,b)=>b[1].gbv-a[1].gbv);
+  const tot = { gbv:sum(d,'gbv'), res:sum(d,'residuoCredito'), inc:sum(d,'incassi'), n:d.length };
+
+  tbl('tbl-stato', ['Stato','GBV','Debito Residuo','Incassato','N.Pratiche'],
+    [...entries.map(([k,v])=>[k, fE(v.gbv), fE(v.res), fE(v.inc), f0(v.n)]),
+     ['Totale complessivo', fE(tot.gbv), fE(tot.res), fE(tot.inc), f0(tot.n)]]
+  );
+
+  const labels=entries.map(e=>e[0]);
+  const gbvV=entries.map(e=>e[1].gbv);
+  const nV=entries.map(e=>e[1].n);
+
+  mkDoughnut('chart-stato-gbv', labels, gbvV, PAL, { ttFmt: v=>fE(v) });
+  mkDoughnut('chart-stato-n', labels, nV, PAL, { ttFmt: v=>f0(v) });
+}
+
+// ─── NOTE ──────────────────────────────────────────────────────────────────
+function updateNote(d){
+  const groups=groupBy(d,'hasNote');
+  const entries=Object.entries(groups).sort((a,b)=>a[0].localeCompare(b[0]));
+  const tot={gbv:sum(d,'gbv'),res:sum(d,'residuoCredito'),inc:sum(d,'incassi'),n:d.length};
+  tbl('tbl-note',['Presenza Note','GBV','Debito Residuo','Incassato','N.Pratiche'],
+    [...entries.map(([k,v])=>[k,fE(v.gbv),fE(v.res),fE(v.inc),f0(v.n)]),
+     ['Totale',fE(tot.gbv),fE(tot.res),fE(tot.inc),f0(tot.n)]]);
+  mkDoughnut('chart-note', entries.map(e=>e[0]), entries.map(e=>e[1].n),
+    entries.map(e=>e[0]==='OK'?C.green:C.red));
+}
+
+// ─── SCADENZE ──────────────────────────────────────────────────────────────
+function updateScadenze(d){
+  const groups=groupBy(d,'hasScadenze');
+  const entries=Object.entries(groups).sort((a,b)=>a[0].localeCompare(b[0]));
+  const tot={gbv:sum(d,'gbv'),res:sum(d,'residuoCredito'),inc:sum(d,'incassi'),n:d.length};
+  tbl('tbl-scadenze',['Presenza Scadenze','GBV','Debito Residuo','Incassato','N.Pratiche'],
+    [...entries.map(([k,v])=>[k,fE(v.gbv),fE(v.res),fE(v.inc),f0(v.n)]),
+     ['Totale',fE(tot.gbv),fE(tot.res),fE(tot.inc),f0(tot.n)]]);
+  mkDoughnut('chart-scadenze', entries.map(e=>e[0]), entries.map(e=>e[1].n),
+    entries.map(e=>e[0]==='OK'?C.blue:C.red));
+}
+
+// ─── LAVORAZIONI ───────────────────────────────────────────────────────────
+function updateLavorazioni(d){
+  const groups=groupBy(d,'annoLav');
+  const entries=Object.entries(groups).sort((a,b)=>Number(a[0])-Number(b[0]));
+  const tot={gbv:sum(d,'gbv'),res:sum(d,'residuoCredito'),inc:sum(d,'incassi'),n:d.length};
+  const labelMap = k => k==='0'?'N/D':k;
+  tbl('tbl-lavorazioni',['Anno Lavorazione','GBV','Debito Residuo','Incassato','N.Pratiche'],
+    [...entries.map(([k,v])=>[labelMap(k),fE(v.gbv),fE(v.res),fE(v.inc),f0(v.n)]),
+     ['Totale',fE(tot.gbv),fE(tot.res),fE(tot.inc),f0(tot.n)]]);
+  const ctx=getCtx('chart-lavorazioni');
+  CHARTS['chart-lavorazioni']=new Chart(ctx,{
+    type:'bar',
+    data:{ labels:entries.map(e=>labelMap(e[0])),
+      datasets:[{label:'N. Pratiche',data:entries.map(e=>e[1].n),
+        backgroundColor:entries.map(e=>e[0]==='0'?C.gray:C.yellow),borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#7c8399',font:{size:10}},grid:{color:'#2a2f45'}},
+              y:{ticks:{color:'#7c8399',font:{size:10}},grid:{color:'#2a2f45'}}}}
+  });
+}
+
+// ─── ETÀ ───────────────────────────────────────────────────────────────────
+function updateEta(d){
+  const ORDER=['40-65','65+','N/D','18-40'];
+  const groups=groupBy(d,'fasciaEta');
+  const entries=ORDER.filter(k=>groups[k]).map(k=>[k,groups[k]]);
+  const tot={gbv:sum(d,'gbv'),res:sum(d,'residuoCredito'),inc:sum(d,'incassi'),n:d.length};
+  tbl('tbl-eta',['Fascia Età','GBV','Debito Residuo','Incassato','N.Pratiche'],
+    [...entries.map(([k,v])=>[k,fE(v.gbv),fE(v.res),fE(v.inc),f0(v.n)]),
+     ['Totale',fE(tot.gbv),fE(tot.res),fE(tot.inc),f0(tot.n)]]);
+  mkDoughnut('chart-eta', entries.map(e=>e[0]), entries.map(e=>e[1].n),
+    [C.blue,C.purple,C.gray,C.cyan]);
+}
+
+// ─── AREA ──────────────────────────────────────────────────────────────────
+function updateArea(d){
+  const groups=groupBy(d,'area');
+  const entries=Object.entries(groups).sort((a,b)=>b[1].gbv-a[1].gbv);
+  const tot={gbv:sum(d,'gbv'),res:sum(d,'residuoCredito'),inc:sum(d,'incassi'),n:d.length};
+  tbl('tbl-area',['Area Geografica','GBV','Debito Residuo','Incassato','N.Pratiche'],
+    [...entries.map(([k,v])=>[k,fE(v.gbv),fE(v.res),fE(v.inc),f0(v.n)]),
+     ['Totale',fE(tot.gbv),fE(tot.res),fE(tot.inc),f0(tot.n)]]);
+  mkDoughnut('chart-area', entries.map(e=>e[0]), entries.map(e=>e[1].n), PAL);
+}
+
+// ─── CF DUPLICATI ──────────────────────────────────────────────────────────
+function updateCF(d){
+  const groups=groupBy(d,'cfAltriLotti');
+  const labels={1:'Presente in 1 lotto',2:'Presente in 2+ lotti'};
+  const entries=Object.entries(groups).sort((a,b)=>Number(a[0])-Number(b[0]));
+  const tot={gbv:sum(d,'gbv'),res:sum(d,'residuoCredito'),inc:sum(d,'incassi'),n:d.length};
+  tbl('tbl-cf',['Presenza C.F.','GBV','Debito Residuo','Incassato','N.Pratiche'],
+    [...entries.map(([k,v])=>[labels[k]||k,fE(v.gbv),fE(v.res),fE(v.inc),f0(v.n)]),
+     ['Totale',fE(tot.gbv),fE(tot.res),fE(tot.inc),f0(tot.n)]]);
+  mkDoughnut('chart-cf', entries.map(e=>labels[e[0]]||e[0]), entries.map(e=>e[1].n),
+    [C.green, C.red]);
+}
+
+function updateNDG(d){
+  const groups=groupBy(d,'ndgAltriLotti');
+  const labels={1:'Presente in 1 lotto',2:'Presente in 2+ lotti'};
+  const entries=Object.entries(groups).sort((a,b)=>Number(a[0])-Number(b[0]));
+  const tot={gbv:sum(d,'gbv'),res:sum(d,'residuoCredito'),inc:sum(d,'incassi'),n:d.length};
+  tbl('tbl-ndg',['Presenza NDG','GBV','Debito Residuo','Incassato','N.Pratiche'],
+    [...entries.map(([k,v])=>[labels[k]||k,fE(v.gbv),fE(v.res),fE(v.inc),f0(v.n)]),
+     ['Totale',fE(tot.gbv),fE(tot.res),fE(tot.inc),f0(tot.n)]]);
+  mkDoughnut('chart-ndg', entries.map(e=>labels[e[0]]||e[0]), entries.map(e=>e[1].n),
+    [C.green, C.red]);
+}
+
+// ─── PORTAFOGLIO-LOTTO ─────────────────────────────────────────────────────
+function updatePortafoglio(d){
+  const groups=groupBy(d,'portafolioLotto');
+  const entries=Object.entries(groups).sort((a,b)=>b[1].n-a[1].n);
+  const tot={gbv:sum(d,'gbv'),res:sum(d,'residuoCredito'),inc:sum(d,'incassi'),n:d.length};
+
+  tbl('tbl-portafoglio',['Portafoglio - Lotto','GBV','Debito Residuo','Incassato','N.Pratiche','% Recupero'],
+    [...entries.map(([k,v])=>{
+      const perc=v.gbv?(v.inc/v.gbv*100):0;
+      const col=perc>10?'var(--accent3)':perc>5?'var(--accent4)':'var(--red)';
+      return [k,fE(v.gbv),fE(v.res),fE(v.inc),f0(v.n),`<span style="color:${col}">${perc.toFixed(1)}%</span>`];
+    }),
+     ['Totale',fE(tot.gbv),fE(tot.res),fE(tot.inc),f0(tot.n),
+      `<span style="color:var(--accent)">${tot.gbv?(tot.inc/tot.gbv*100).toFixed(1)+'%':'0%'}</span>`]]
+  );
+
+  const labels=entries.map(e=>e[0]);
+  const nV=entries.map(e=>e[1].n);
+  const ctx=getCtx('chart-portafoglio');
+  CHARTS['chart-portafoglio']=new Chart(ctx,{
+    type:'bar', indexAxis:'y',
+    data:{ labels,
+      datasets:[{label:'N. Pratiche',data:nV,
+        backgroundColor:labels.map((_,i)=>PAL[i%PAL.length]),borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${f0(ctx.parsed.x)} pratiche`}}},
+      scales:{y:{ticks:{color:'#7c8399',font:{size:10}},grid:{color:'#2a2f45'}},
+              x:{ticks:{color:'#7c8399',font:{size:10}},grid:{color:'#2a2f45'}}}}
+  });
+}
+
+// ─── HELPER CHART ──────────────────────────────────────────────────────────
+function getCtx(id){
+  if(CHARTS[id]){ CHARTS[id].destroy(); delete CHARTS[id]; }
+  return document.getElementById(id).getContext('2d');
+}
+
+function mkLine(id, labels, datasets, opts={}){
+  const ctx=getCtx(id);
+  CHARTS[id]=new Chart(ctx,{
+    type:'line',
+    data:{ labels, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:datasets.length>1, labels:{color:'#e8eaf0',font:{size:11}}}},
+      scales:{
+        x:{ticks:{color:'#7c8399',font:{family:'IBM Plex Mono',size:10},maxRotation:35},grid:{color:'#2a2f45'}},
+        y:{ticks:{color:'#7c8399',font:{family:'IBM Plex Mono',size:10},callback: opts.yFmt||undefined},grid:{color:'#2a2f45'}}
+      }
+    }
+  });
+}
+
+function mkCombo(id, labels, gbvVals, nVals){
+  const ctx=getCtx(id);
+  CHARTS[id]=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        { label:'GBV (€)', data:gbvVals, borderColor:C.blue, backgroundColor:'rgba(79,156,249,.15)',
+          fill:true, tension:.35, pointBackgroundColor:C.blue, pointRadius:5, yAxisID:'y' },
+        { label:'N. Pratiche', data:nVals, borderColor:C.orange, backgroundColor:'rgba(249,123,79,.1)',
+          fill:false, tension:.35, pointBackgroundColor:C.orange, pointRadius:5, yAxisID:'y2', borderDash:[5,3] }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:true,labels:{color:'#e8eaf0',font:{size:11}}}},
+      scales:{
+        x:{ticks:{color:'#7c8399',font:{family:'IBM Plex Mono',size:10},maxRotation:35},grid:{color:'#2a2f45'}},
+        y:{ position:'left', ticks:{color:C.blue,font:{family:'IBM Plex Mono',size:10},callback:v=>fM(v)}, grid:{color:'#2a2f45'},
+            title:{display:true,text:'GBV',color:C.blue,font:{size:10}} },
+        y2:{ position:'right', ticks:{color:C.orange,font:{family:'IBM Plex Mono',size:10}}, grid:{display:false},
+             title:{display:true,text:'N. Pratiche',color:C.orange,font:{size:10}} }
+      }
+    }
+  });
+}
+
+function mkDoughnut(id, labels, values, colors, opts={}){
+  const ctx=getCtx(id);
+  const bgColors = colors || PAL.slice(0,labels.length);
+  CHARTS[id]=new Chart(ctx,{
+    type:'doughnut',
+    data:{ labels,
+      datasets:[{ data:values, backgroundColor:bgColors,
+        borderColor:'#0d0f14', borderWidth:2, hoverOffset:8 }]},
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'58%',
+      plugins:{
+        legend:{
+          position:'right',
+          labels:{
+            color:'#e8eaf0',
+            font:{ family:'IBM Plex Sans', size:11, weight:'500' },
+            padding:14,
+            boxWidth:12,
+            boxHeight:12,
+            useBorderRadius:true,
+            borderRadius:3,
+            generateLabels: chart => {
+              const ds = chart.data.datasets[0];
+              const total = ds.data.reduce((a,b)=>a+b,0);
+              return chart.data.labels.map((label,i) => {
+                const val = ds.data[i];
+                const pct = total ? (val/total*100).toFixed(1) : '0.0';
+                return {
+                  text: `${pct}%  ${label}`,
+                  fillStyle: ds.backgroundColor[i],
+                  strokeStyle: ds.backgroundColor[i],
+                  fontColor: '#e8eaf0',
+                  lineWidth: 0,
+                  hidden: false,
+                  index: i,
+                };
+              });
+            }
+          }
+        },
+        tooltip:{callbacks:{
+          label:ctx=>{
+            const tot=ctx.dataset.data.reduce((a,b)=>a+b,0);
+            const pct=(ctx.parsed/tot*100).toFixed(1);
+            return ` ${ctx.label}: ${f0(ctx.parsed)} (${pct}%)`;
+          }
+        }}
+      }
+    }
+  });
+}
+
+// ─── DRILL-DOWN: doppio click su grafico → CSV ──────────────────────────────
+
+// Mappa chartId → funzione che dato il label clicked restituisce {ndgSet, filename}
+const DRILL_MAP = {};
+
+function registerDrill(chartId, fn){ DRILL_MAP[chartId] = fn; }
+
+// Aggancia doppio click su un canvas dopo la creazione del chart
+function hookDblClick(canvasId){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas || canvas._dblHooked) return;
+  canvas._dblHooked = true;
+  canvas.addEventListener('dblclick', e => {
+    const chart = CHARTS[canvasId] || CHARTS_L[canvasId] || CHARTS_M[canvasId];
+    if(!chart) return;
+    const pts = chart.getElementsAtEventForMode(e,'nearest',{intersect:true},true);
+    if(!pts.length) return;
+    const idx = pts[0].index;
+    const label = chart.data.labels[idx];
+    const fn = DRILL_MAP[canvasId];
+    if(!fn){ console.warn('Nessun drill registrato per',canvasId); return; }
+    const {ndgSet, filename} = fn(label);
+    if(!ndgSet || ndgSet.size===0){ alert(`Nessun dato per: ${label}`); return; }
+    downloadDrillXLSX(ndgSet, filename);
+  });
+}
+
+function downloadDrillXLSX(ndgSet, filename){
+  // Filtra le righe originali del file per NDG
+  const ndgCol = RAW_NDG_COL;
+  const dataRows = ndgCol >= 0
+    ? RAW_ROWS_LINEE.filter(r => ndgSet.has(String(r[ndgCol]||'').trim()))
+    : RAW_ROWS_LINEE;
+
+  if(!dataRows.length){ alert('Nessun dato per questa selezione'); return; }
+
+  // Costruisce il workbook con intestazioni originali + righe filtrate
+  const wsData = [RAW_HEADERS_LINEE, ...dataRows];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Larghezza colonne automatica
+  const colWidths = RAW_HEADERS_LINEE.map((h,ci) => {
+    const maxLen = Math.max(
+      String(h||'').length,
+      ...dataRows.slice(0,50).map(r => String(r[ci]==null?'':r[ci]).length)
+    );
+    return { wch: Math.min(maxLen + 2, 40) };
+  });
+  ws['!cols'] = colWidths;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Dati');
+  XLSX.writeFile(wb, `${filename.replace(/[\\/:*?"<>|]/g,'_')}.xlsx`);
+
+  // Feedback visivo
+  const msg = document.createElement('div');
+  msg.textContent = `⬇ ${filename}.xlsx — ${dataRows.length} righe`;
+  Object.assign(msg.style, {position:'fixed',bottom:'24px',right:'24px',background:'var(--accent)',
+    color:'#fff',padding:'10px 18px',borderRadius:'8px',fontSize:'13px',zIndex:'9999',
+    fontFamily:"'IBM Plex Sans',sans-serif",boxShadow:'0 4px 16px rgba(0,0,0,.4)'});
+  document.body.appendChild(msg);
+  setTimeout(()=>msg.remove(), 3000);
+}
+
+// Helper: estrae Set di NDG da array di pratiche/linee/mov filtrate
+const toNdgSet = arr => new Set(arr.map(p => p.ndgPratica).filter(Boolean));
+
+// Registra drill per pratiche
+function registerDrillsPratiche(){
+  ['chart-fascia-gbv-line','chart-fascia-n-line','chart-fascia-combo'].forEach(id=>{
+    registerDrill(id, lbl=>({ ndgSet:toNdgSet(getFiltered().filter(p=>p.fasciaImporto===lbl)), filename:lbl }));
+  });
+  ['chart-stato-gbv','chart-stato-n'].forEach(id=>{
+    registerDrill(id, lbl=>({ ndgSet:toNdgSet(getFiltered().filter(p=>p.stato===lbl)), filename:`stato_${lbl}` }));
+  });
+  const pratDrillMap = {
+    'chart-note':     p=>p.hasNote,
+    'chart-scadenze': p=>p.hasScadenze,
+    'chart-eta':      p=>p.fasciaEta,
+    'chart-area':     p=>p.area,
+    'chart-cf':       p=>String(p.cfAltriLotti===2?'Presente in 2+ lotti':'Presente in 1 lotto'),
+    'chart-ndg':      p=>String(p.ndgAltriLotti===2?'Presente in 2+ lotti':'Presente in 1 lotto'),
+  };
+  Object.entries(pratDrillMap).forEach(([id, getter])=>{
+    registerDrill(id, lbl=>({ ndgSet:toNdgSet(getFiltered().filter(p=>getter(p)===lbl)), filename:lbl }));
+  });
+  registerDrill('chart-lavorazioni', lbl=>({ ndgSet:toNdgSet(getFiltered().filter(p=>String(p.annoLav===0?'N/D':p.annoLav)===lbl)), filename:`lavorazione_${lbl}` }));
+  registerDrill('chart-portafoglio', lbl=>({ ndgSet:toNdgSet(getFiltered().filter(p=>p.portafolioLotto===lbl)), filename:`portafoglio_${lbl}` }));
+}
+
+// Registra drill per linee
+function registerDrillsLinee(){
+  registerDrill('chart-l-trimestre', lbl=>{
+    const full = lbl.includes('Trimestre') ? lbl : lbl.replace(/(\d{4}) - (\d)°/,`$1 - $2° Trimestre`);
+    const filtered = getFilteredLinee().filter(r=>r.trimestre===full||r.trimestre.replace(' Trimestre','')===lbl);
+    return { ndgSet:toNdgSet(filtered), filename:`trimestre_${lbl}` };
+  });
+  registerDrill('chart-l-portafoglio', lbl=>({ ndgSet:toNdgSet(getFilteredLinee().filter(r=>r.portafolioLotto===lbl)), filename:`portafoglio_${lbl}` }));
+  registerDrill('chart-l-presc-ins', lbl=>({ ndgSet:toNdgSet(getFilteredLinee().filter(r=>r.prescrizioneInserita===lbl)), filename:`prescr_inserita_${lbl}` }));
+  registerDrill('chart-l-prescritta', lbl=>({ ndgSet:toNdgSet(getFilteredLinee().filter(r=>r.prescritta===lbl)), filename:`prescritta_${lbl}` }));
+  ['chart-l-fascia-cap','chart-l-fascia-n','chart-l-fascia-combo'].forEach(id=>{
+    registerDrill(id, lbl=>({ ndgSet:toNdgSet(getFilteredLinee().filter(r=>r.fasciaImporto===lbl)), filename:`fascia_${lbl}` }));
+  });
+  registerDrill('chart-l-stato', lbl=>({ ndgSet:toNdgSet(getFilteredLinee().filter(r=>r.stato===lbl)), filename:`stato_${lbl}` }));
+  registerDrill('chart-l-tipo', lbl=>({ ndgSet:toNdgSet(getFilteredLinee().filter(r=>r.tipoLinea===lbl)), filename:`tipo_${lbl}` }));
+  registerDrill('chart-l-area', lbl=>({ ndgSet:toNdgSet(getFilteredLinee().filter(r=>r.area===lbl)), filename:`area_${lbl}` }));
+}
+
+// Registra drill per movimentazione
+function registerDrillsMov(){
+  const annoFields = {
+    'chart-m-ult-att':'annoUltima','chart-m-nota':'annoNota',
+    'chart-m-scad':'annoScadenza','chart-m-lav':'annoLav'
+  };
+  Object.entries(annoFields).forEach(([id, field])=>{
+    registerDrill(id, lbl=>({ ndgSet:toNdgSet(getFilteredMov().filter(p=>String(p[field]===0?'N/D':p[field])===lbl)), filename:`${field}_${lbl}` }));
+  });
+}
+
+// Aggancia tutti i dblclick dopo init
+function hookAllDblClicks(){
+  ['chart-fascia-gbv-line','chart-fascia-n-line','chart-fascia-combo',
+   'chart-stato-gbv','chart-stato-n','chart-note','chart-scadenze','chart-lavorazioni',
+   'chart-eta','chart-area','chart-cf','chart-ndg','chart-portafoglio',
+   'chart-l-trimestre','chart-l-portafoglio','chart-l-presc-ins','chart-l-prescritta',
+   'chart-l-fascia-cap','chart-l-fascia-n','chart-l-fascia-combo',
+   'chart-l-stato','chart-l-tipo','chart-l-area',
+   'chart-m-ult-att','chart-m-nota','chart-m-scad','chart-m-lav'
+  ].forEach(hookDblClick);
+}
+
+// Tooltip visivo sul canvas
+function addDblClickHint(){
+  document.querySelectorAll('.chart-wrap canvas').forEach(c=>{
+    c.title = 'Doppio clic per scaricare i dati di questo segmento';
+    c.style.cursor = 'pointer';
+  });
+}
+
+function tbl(id, headers, rows){
+  const isNum = v => {
+    const clean = String(v).replace(/<[^>]+>/g,'').replace(/[€.\s]/g,'').replace(',','.');
+    return !isNaN(parseFloat(clean)) && clean !== '';
+  };
+  let html=`<thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+  rows.forEach((row,ri)=>{
+    html+=`<tr>${row.map((cell,ci)=>{
+      const right = ci>0; // tutte le colonne dopo la prima sono numeri
+      return `<td class="${right?'num':''}">${cell}</td>`;
+    }).join('')}</tr>`;
+  });
+  html+=`</tbody>`;
+  document.getElementById(id).innerHTML=html;
+}
+
+// ─── AGGREGAZIONE HELPER ───────────────────────────────────────────────────
+function groupBy(data, key){
+  return data.reduce((m,p)=>{
+    const k=String(p[key]||'N/D');
+    if(!m[k]) m[k]={gbv:0,res:0,inc:0,n:0};
+    m[k].gbv+=p.gbv||0;
+    m[k].res+=p.residuoCredito||0;
+    m[k].inc+=p.incassi||0;
+    m[k].n++;
+    return m;
+  },{});
+}
+function sum(arr, key){ return arr.reduce((s,p)=>s+(p[key]||0),0); }
+
+// ─── FORMATTATORI ──────────────────────────────────────────────────────────
+function f0(n){ return Number(n).toLocaleString('it-IT'); }
+function fE(n){ return Number(n).toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}); }
+function fM(n){
+  if(Math.abs(n)>=1e6) return (n/1e6).toFixed(1)+'M';
+  if(Math.abs(n)>=1e3) return (n/1e3).toFixed(0)+'k';
+  return f0(n);
+}
+
+// ─── EXPORT CSV ────────────────────────────────────────────────────────────
+function exportCSV(){
+  const ndgSet = toNdgSet(getFiltered());
+  downloadDrillXLSX(ndgSet, 'pratiche_export');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// NAVIGAZIONE TAB
+// ══════════════════════════════════════════════════════════════════════════════
+function switchTab(tab){
+  document.getElementById('tab-pratiche').classList.toggle('active', tab==='pratiche');
+  document.getElementById('tab-linee').classList.toggle('active', tab==='linee');
+  document.getElementById('tab-mov').classList.toggle('active', tab==='mov');
+  document.getElementById('dashboard').style.display        = tab==='pratiche'?'block':'none';
+  document.getElementById('dashboard-linee').style.display  = tab==='linee'?'block':'none';
+  document.getElementById('dashboard-mov').style.display    = tab==='mov'?'block':'none';
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DATI LINEE
+// ══════════════════════════════════════════════════════════════════════════════
+let LINEE=[];
+let CHARTS_L={};
+
+function parseLinee(allRows, headerIdx){
+  const headers=allRows[headerIdx].map(h=>h?String(h).trim():'');
+  const dataRows=allRows.slice(headerIdx+1).filter(r=>r&&r.some(v=>v!==null&&v!==''));
+  const bc=candidates=>{
+    // Prima cerca corrispondenza esatta (case-insensitive)
+    for(const c of candidates){
+      const i=headers.findIndex(h=>h&&h.toLowerCase()===c.toLowerCase());
+      if(i>=0)return i;
+    }
+    // Poi cerca per inclusione
+    for(const c of candidates){
+      const i=headers.findIndex(h=>h&&h.toLowerCase().includes(c.toLowerCase()));
+      if(i>=0)return i;
+    }
+    return -1;
+  };
+  const COL_L={
+    ndgPratica:   bc(['OCS / NDG Pratica','NDG Pratica']),
+    ndg:          bc(['OCS / NDG']),
+    portafoglio:  bc(['Portafoglio']),
+    lotto:        bc(['Lotto']),
+    nominativo:   bc(['Nominativo']),
+    tipoLinea:    bc(['Tipo linea di credito']),
+    area:         bc(['Area geografica']),
+    capitale:     bc(['Capitale iniziale']),
+    residuoCredito:bc(['Residuo credito']),
+    incassi:      bc(['Totale incassi conteggiati','Totale incassi']),
+    stato:        bc(['Stato']),
+    assegnatari:  bc(['Assegnatari']),
+    fasciaImporto:bc(["FASCIA D'IMPORTO PRATICA","FASCIA D'IMPORTO"]),
+    dataAssegnazione: bc(['DATA DI ASSEGNAZIONE','Data di assegnazione']),
+    dataPrescrizione: bc(['data prescrizione','Data Prescrizione']),
+  };
+
+  const oggi = new Date(); oggi.setHours(0,0,0,0);
+
+  const dataToTrimestre = v => {
+    const d = parseDate(v);
+    if (!d) return 'N/D';
+    const y = d.getFullYear();
+    const m = d.getMonth(); // 0-based
+    const t = Math.floor(m/3)+1;
+    const nomi = ['1° Trimestre','2° Trimestre','3° Trimestre','4° Trimestre'];
+    return `${y} - ${nomi[t-1]}`;
+  };
+
+  LINEE=dataRows.map(r=>{
+    const get=c=>c>=0?r[c]:null;
+    const pf=String(get(COL_L.portafoglio)||'').trim();
+    const lt=String(get(COL_L.lotto)||'').trim();
+
+    const rawPresc = get(COL_L.dataPrescrizione);
+    const dataPresc = parseDate(rawPresc);
+    const prescrizioneInserita = dataPresc ? 'SI' : 'NO';
+    const prescritta = dataPresc ? (dataPresc < oggi ? 'Prescritta' : 'Non prescritta') : 'N/D';
+
+    return{
+      ndgPratica:  String(get(COL_L.ndgPratica)||get(COL_L.ndg)||'').trim(),
+      portafoglio: pf, lotto:lt,
+      portafolioLotto:`${pf} - ${lt}`,
+      nominativo:  String(get(COL_L.nominativo)||'').trim().replace(/#[^#]+#/g,'').trim(),
+      tipoLinea:   String(get(COL_L.tipoLinea)||'').trim()||'N/D',
+      area:        String(get(COL_L.area)||'').trim()||'N/D',
+      capitale:    toN(get(COL_L.capitale)),
+      residuoCredito:toN(get(COL_L.residuoCredito)),
+      incassi:     toN(get(COL_L.incassi)),
+      stato:       String(get(COL_L.stato)||'').trim()||'N/D',
+      assegnatario:String(get(COL_L.assegnatari)||'').split(';')[0].trim()||'Non assegnato',
+      assegnatario1:String(get(COL_L.assegnatari)||'').split(';')[0].trim()||'Non assegnato',
+      assegnatario2:(String(get(COL_L.assegnatari)||'').split(';')[1]||'').trim()||'',
+      fasciaImporto:String(get(COL_L.fasciaImporto)||'').trim()||fasciaGBV(toN(get(COL_L.capitale))),
+      trimestre:   dataToTrimestre(get(COL_L.dataAssegnazione)),
+      prescrizioneInserita,
+      prescritta,
+    };
+  }).filter(r=>r.portafoglio);
+}
+
+// ─── FILTRI LINEE ─────────────────────────────────────────────────────────
+const FILTER_DEFS_L=[
+  {key:'assegnatario1',        label:'1° Assegnatario'},
+  {key:'assegnatario2',        label:'2° Assegnatario'},
+  {key:'portafolioLotto',      label:'Portafoglio-Lotto'},
+  {key:'stato',                label:'Stato'},
+  {key:'area',                 label:'Area Geografica'},
+  {key:'fasciaImporto',        label:'Fascia Importo'},
+  {key:'tipoLinea',            label:'Tipo Linea'},
+  {key:'trimestre',            label:'Trimestre Assegnazione'},
+  {key:'prescrizioneInserita', label:'Data Presc. Presente'},
+  {key:'prescritta',           label:'Prescritta'},
+];
+let FILTER_STATE_L={};
+
+function buildFiltersLinee(){
+  FILTER_STATE_L={};
+  FILTER_DEFS_L.forEach(def=>{FILTER_STATE_L[def.key]=new Set();});
+  const bar=document.getElementById('filters-bar-linee');
+  bar.querySelectorAll('.filter-group').forEach(el=>el.remove());
+  const rightBtn=bar.querySelector('.filter-right');
+  FILTER_DEFS_L.forEach(def=>{
+    const vals=getUVL(def.key);
+    if(!vals.length) return;
+    const grp=document.createElement('div');
+    grp.className='filter-group';
+    grp.innerHTML=`
+      <button class="filter-btn" id="fbl-${def.key}" onclick="toggleDDL('${def.key}')">
+        <span class="lbl">${def.label}</span><span class="arr">▼</span>
+      </button>
+      <div class="filter-dropdown" id="fdl-${def.key}">
+        <div class="fd-head">
+          <span class="fd-title">${def.label}</span>
+          <div class="fd-acts">
+            <button onclick="selAllL('${def.key}')">Nessuno</button>
+            <button onclick="clrL('${def.key}')">Tutti</button>
+          </div>
+        </div>
+        <div class="fd-opts">
+          ${vals.map(v=>`<label class="fd-opt"><input type="checkbox" data-keyl="${def.key}" data-vall="${v.replace(/"/g,'&quot;')}" onchange="onChkL('${def.key}',this.dataset.vall,this.checked)"><span>${v}</span></label>`).join('')}
+        </div>
+      </div>`;
+    bar.insertBefore(grp,rightBtn);
+  });
+}
+
+function getUVL(key){
+  const s=new Set(LINEE.map(r=>{ const v=String(r[key]==null?'':r[key]); return v.trim()||'Non assegnato'; }));
+  return[...s].filter(Boolean).sort((a,b)=>{
+    if(a==='Non assegnato') return 1; if(b==='Non assegnato') return -1;
+    const na=Number(a),nb=Number(b);return(!isNaN(na)&&!isNaN(nb))?na-nb:a.localeCompare(b,'it');
+  });
+}
+function toggleDDL(key){
+  const fd=document.getElementById('fdl-'+key),fb=document.getElementById('fbl-'+key);
+  const was=fd.classList.contains('show');
+  document.querySelectorAll('.filter-dropdown').forEach(e=>e.classList.remove('show'));
+  document.querySelectorAll('.filter-btn').forEach(e=>e.classList.remove('open'));
+  if(!was){fd.classList.add('show');fb.classList.add('open');}
+}
+function onChkL(key,val,checked){
+  if(checked)FILTER_STATE_L[key].add(val);else FILTER_STATE_L[key].delete(val);
+  refBtnL(key);refChipsL();applyFiltersLinee();
+}
+function selAllL(key){
+  FILTER_STATE_L[key].clear();
+  document.querySelectorAll(`input[data-keyl="${key}"]`).forEach(cb=>{cb.checked=false;cb.closest('.fd-opt').classList.remove('is-checked');});
+  refBtnL(key);refChipsL();applyFiltersLinee();
+}
+function clrL(key){
+  getUVL(key).forEach(v=>FILTER_STATE_L[key].add(v));
+  document.querySelectorAll(`input[data-keyl="${key}"]`).forEach(cb=>{cb.checked=true;cb.closest('.fd-opt').classList.add('is-checked');});
+  refBtnL(key);refChipsL();applyFiltersLinee();
+}
+function refBtnL(key){
+  const cnt=FILTER_STATE_L[key].size,fb=document.getElementById('fbl-'+key);
+  if(!fb)return;
+  if(cnt===0){fb.classList.remove('active');const c=fb.querySelector('.cnt');if(c)c.remove();}
+  else{fb.classList.add('active');let c=fb.querySelector('.cnt');if(!c){c=document.createElement('span');c.className='cnt';fb.insertBefore(c,fb.querySelector('.arr'));}c.textContent=cnt;}
+}
+function refChipsL(){
+  const bar=document.getElementById('chips-bar-linee');bar.innerHTML='';
+  FILTER_DEFS_L.forEach(def=>{
+    FILTER_STATE_L[def.key].forEach(val=>{
+      const chip=document.createElement('span');chip.className='chip';
+      chip.innerHTML=`<span style="color:var(--dim);font-size:10px">${def.label}:</span> ${val}<button class="chip-x" onclick="rmChipL('${def.key}',this.parentElement.dataset.val)">×</button>`;
+      chip.dataset.val=val;bar.appendChild(chip);
+    });
+  });
+}
+function rmChipL(key,val){
+  FILTER_STATE_L[key].delete(val);
+  const cb=document.querySelector(`input[data-keyl="${key}"][data-vall="${val}"]`);
+  if(cb){cb.checked=false;cb.closest('.fd-opt').classList.remove('is-checked');}
+  refBtnL(key);refChipsL();applyFiltersLinee();
+}
+function getFilteredLinee(){
+  return LINEE.filter(r=>FILTER_DEFS_L.every(def=>{
+    if(FILTER_STATE_L[def.key].size===0)return true;
+    const raw=String(r[def.key]==null?'':r[def.key]);
+    const v=raw.trim()||'Non assegnato';
+    return FILTER_STATE_L[def.key].has(v);
+  }));
+}
+function applyFiltersLinee(){updateAllLinee(getFilteredLinee()); hookAllDblClicks();}
+function resetFiltersLinee(){
+  FILTER_DEFS_L.forEach(def=>{
+    FILTER_STATE_L[def.key].clear();
+    document.querySelectorAll(`input[data-keyl="${def.key}"]`).forEach(cb=>{cb.checked=false;cb.closest('.fd-opt').classList.remove('is-checked');});
+    refBtnL(def.key);
+  });
+  refChipsL();applyFiltersLinee();
+}
+
+// ─── INIT LINEE ────────────────────────────────────────────────────────────
+function initLinee(){
+  buildFiltersLinee();
+  document.getElementById('info-bar-linee').innerHTML=`Linee di credito elaborate: <strong>${LINEE.length}</strong>`;
+  updateAllLinee(getFilteredLinee());
+}
+
+function updateAllLinee(d){
+  updateKPILinee(d);
+  updateTrimestreLinee(d);
+  updatePrescrizioneLinee(d);
+  updateFasciaLinee(d);
+  updateStatoLinee(d);
+  updateTipoLinee(d);
+  updateAreaLinee(d);
+  updatePortafolioLinee(d);
+}
+
+function updateKPILinee(d){
+  const cap=sumL(d,'capitale'),res=sumL(d,'residuoCredito'),inc=sumL(d,'incassi'),perc=cap?(inc/cap*100):0;
+  document.getElementById('kpi-strip-linee').innerHTML=`
+    <div class="kpi-card blue"><div class="kpi-label">N. Linee</div><div class="kpi-value">${f0(d.length)}</div><div class="kpi-sub">linee di credito</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">Capitale</div><div class="kpi-value">${fM(cap)}</div><div class="kpi-sub">capitale iniziale</div></div>
+    <div class="kpi-card yellow"><div class="kpi-label">Residuo</div><div class="kpi-value">${fM(res)}</div><div class="kpi-sub">residuo credito</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Incassato</div><div class="kpi-value">${fM(inc)}</div><div class="kpi-sub">totale incassi</div></div>
+    <div class="kpi-card ${perc>10?'green':perc>5?'yellow':'red'}"><div class="kpi-label">% Recupero</div><div class="kpi-value">${perc.toFixed(1)}%</div><div class="kpi-sub">incassato / capitale</div></div>`;
+}
+
+function updateTrimestreLinee(d){
+  const grp=grpL(d,'trimestre');
+  // Rimuovi N/D dal calcolo del range
+  const validKeys=Object.keys(grp).filter(k=>k!=='N/D').sort((a,b)=>a.localeCompare(b,'it'));
+
+  // Genera tutti i trimestri nel range min-max
+  const allKeys=[];
+  if(validKeys.length){
+    const parseT=k=>{ const m=k.match(/(\d{4}) - (\d)°/); return m?{y:+m[1],t:+m[2]}:null; };
+    const fmtT=(y,t)=>{const n=['1° Trimestre','2° Trimestre','3° Trimestre','4° Trimestre'];return `${y} - ${n[t-1]}`;};
+    const first=parseT(validKeys[0]), last=parseT(validKeys[validKeys.length-1]);
+    if(first&&last){
+      let y=first.y, t=first.t;
+      while(y<last.y||(y===last.y&&t<=last.t)){
+        allKeys.push(fmtT(y,t));
+        t++; if(t>4){t=1;y++;}
+      }
+    }
+  }
+  // Aggiungi N/D in fondo se presente
+  if(grp['N/D']) allKeys.push('N/D');
+  // Se nessun range valido usa solo le chiavi esistenti
+  const keys = allKeys.length ? allKeys : Object.keys(grp).sort((a,b)=>a.localeCompare(b,'it'));
+
+  const entries=keys.map(k=>[k, grp[k]||{cap:0,res:0,inc:0,n:0}]);
+  const tot={cap:sumL(d,'capitale'),res:sumL(d,'residuoCredito'),inc:sumL(d,'incassi'),n:d.length};
+
+  tblL('tbl-l-trimestre',['Trimestre','Capitale','Residuo','Incassato','N.Linee'],
+    [...entries.map(([k,v])=>[k,fE(v.cap),fE(v.res),fE(v.inc),f0(v.n)]),['Totale',fE(tot.cap),fE(tot.res),fE(tot.inc),f0(tot.n)]]);
+
+  const labels=entries.map(e=>e[0].replace(' Trimestre',''));
+  const ctx=getCtxL('chart-l-trimestre');
+  const nVals=entries.map(e=>e[1].n);
+  CHARTS_L['chart-l-trimestre']=new Chart(ctx,{type:'bar',
+    data:{labels,datasets:[{label:'N. Linee',data:nVals,
+      backgroundColor:labels.map((_,i)=>nVals[i]===0?'rgba(124,131,153,0.25)':PAL[i%PAL.length]),
+      borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#7c8399',font:{size:9},maxRotation:40},grid:{color:'#2a2f45'}},
+              y:{ticks:{color:'#7c8399',font:{size:10}},grid:{color:'#2a2f45'}}}}});
+}
+
+function updatePrescrizioneLinee(d){
+  const tot={cap:sumL(d,'capitale'),res:sumL(d,'residuoCredito'),inc:sumL(d,'incassi'),n:d.length};
+  const eIns=Object.entries(grpL(d,'prescrizioneInserita')).sort((a,b)=>a[0].localeCompare(b[0]));
+  tblL('tbl-l-presc-ins',['Data Prescrizione','Capitale','Residuo','Incassato','N.Linee'],
+    [...eIns.map(([k,v])=>[k,fE(v.cap),fE(v.res),fE(v.inc),f0(v.n)]),['Totale',fE(tot.cap),fE(tot.res),fE(tot.inc),f0(tot.n)]]);
+  mkDnutL('chart-l-presc-ins',eIns.map(e=>e[0]),eIns.map(e=>e[1].n),eIns.map(e=>e[0]==='SI'?C.green:e[0]==='N/D'?C.gray:C.red));
+  const ePres=Object.entries(grpL(d,'prescritta')).sort((a,b)=>a[0].localeCompare(b[0]));
+  tblL('tbl-l-prescritta',['Prescritta','Capitale','Residuo','Incassato','N.Linee'],
+    [...ePres.map(([k,v])=>[k,fE(v.cap),fE(v.res),fE(v.inc),f0(v.n)]),['Totale',fE(tot.cap),fE(tot.res),fE(tot.inc),f0(tot.n)]]);
+  mkDnutL('chart-l-prescritta',ePres.map(e=>e[0]),ePres.map(e=>e[1].n),
+    ePres.map(e=>e[0]==='Prescritta'?C.red:e[0]==='Non prescritta'?C.green:C.gray));
+}
+
+function updateFasciaLinee(d){
+  const ORDER=['1- oltre 30k','2- 20-30k','3- 10-20k','4- 3-10k','5- sotto i 3k'];
+  const grp=grpL(d,'fasciaImporto');
+  const rows=ORDER.map(f=>{const v=grp[f]||{cap:0,res:0,inc:0,n:0};return{label:f,...v};});
+  const tot={cap:sumL(d,'capitale'),res:sumL(d,'residuoCredito'),inc:sumL(d,'incassi'),n:d.length};
+  tblL('tbl-l-fascia',['Fascia Importo','Capitale','Residuo','Incassato','N.Linee'],
+    [...rows.map(r=>[r.label,fE(r.cap),fE(r.res),fE(r.inc),f0(r.n)]),['Totale',fE(tot.cap),fE(tot.res),fE(tot.inc),f0(tot.n)]]);
+  const labels=rows.map(r=>r.label);
+  mkLnL('chart-l-fascia-cap',labels,[{label:'Capitale',data:rows.map(r=>r.cap),borderColor:C.blue,backgroundColor:'rgba(79,156,249,.15)',fill:true,tension:.35,pointRadius:5,pointBackgroundColor:C.blue}],{yFmt:v=>fM(v)});
+  mkLnL('chart-l-fascia-n',labels,[{label:'N. Linee',data:rows.map(r=>r.n),borderColor:C.orange,backgroundColor:'rgba(249,123,79,.15)',fill:true,tension:.35,pointRadius:5,pointBackgroundColor:C.orange}],{yFmt:v=>f0(v)});
+  mkCmbL('chart-l-fascia-combo',labels,rows.map(r=>r.cap),rows.map(r=>r.n));
+}
+
+function updateStatoLinee(d){
+  const entries=Object.entries(grpL(d,'stato')).sort((a,b)=>b[1].cap-a[1].cap);
+  const tot={cap:sumL(d,'capitale'),res:sumL(d,'residuoCredito'),inc:sumL(d,'incassi'),n:d.length};
+  tblL('tbl-l-stato',['Stato','Capitale','Residuo','Incassato','N.Linee'],
+    [...entries.map(([k,v])=>[k,fE(v.cap),fE(v.res),fE(v.inc),f0(v.n)]),['Totale',fE(tot.cap),fE(tot.res),fE(tot.inc),f0(tot.n)]]);
+  mkDnutL('chart-l-stato',entries.map(e=>e[0]),entries.map(e=>e[1].n),PAL);
+}
+
+function updateTipoLinee(d){
+  const entries=Object.entries(grpL(d,'tipoLinea')).sort((a,b)=>b[1].n-a[1].n);
+  const tot={cap:sumL(d,'capitale'),res:sumL(d,'residuoCredito'),inc:sumL(d,'incassi'),n:d.length};
+  tblL('tbl-l-tipo',['Tipo Linea','Capitale','Residuo','Incassato','N.Linee'],
+    [...entries.map(([k,v])=>[k,fE(v.cap),fE(v.res),fE(v.inc),f0(v.n)]),['Totale',fE(tot.cap),fE(tot.res),fE(tot.inc),f0(tot.n)]]);
+  mkDnutL('chart-l-tipo',entries.map(e=>e[0]),entries.map(e=>e[1].n),PAL);
+}
+
+function updateAreaLinee(d){
+  const entries=Object.entries(grpL(d,'area')).sort((a,b)=>b[1].cap-a[1].cap);
+  const tot={cap:sumL(d,'capitale'),res:sumL(d,'residuoCredito'),inc:sumL(d,'incassi'),n:d.length};
+  tblL('tbl-l-area',['Area','Capitale','Residuo','Incassato','N.Linee'],
+    [...entries.map(([k,v])=>[k,fE(v.cap),fE(v.res),fE(v.inc),f0(v.n)]),['Totale',fE(tot.cap),fE(tot.res),fE(tot.inc),f0(tot.n)]]);
+  mkDnutL('chart-l-area',entries.map(e=>e[0]),entries.map(e=>e[1].n),PAL);
+}
+
+function updatePortafolioLinee(d){
+  const entries=Object.entries(grpL(d,'portafolioLotto')).sort((a,b)=>b[1].n-a[1].n);
+  const tot={cap:sumL(d,'capitale'),res:sumL(d,'residuoCredito'),inc:sumL(d,'incassi'),n:d.length};
+  tblL('tbl-l-portafoglio',['Portafoglio-Lotto','Capitale','Residuo','Incassato','N.Linee','% Recupero'],
+    [...entries.map(([k,v])=>{const p=v.cap?(v.inc/v.cap*100):0;const col=p>10?'var(--accent3)':p>5?'var(--accent4)':'var(--red)';
+      return[k,fE(v.cap),fE(v.res),fE(v.inc),f0(v.n),`<span style="color:${col}">${p.toFixed(1)}%</span>`];}),
+     ['Totale',fE(tot.cap),fE(tot.res),fE(tot.inc),f0(tot.n),`<span style="color:var(--accent)">${tot.cap?(tot.inc/tot.cap*100).toFixed(1)+'%':'0%'}</span>`]]);
+  const labels=entries.map(e=>e[0]),nV=entries.map(e=>e[1].n);
+  const ctx=getCtxL('chart-l-portafoglio');
+  CHARTS_L['chart-l-portafoglio']=new Chart(ctx,{type:'bar',indexAxis:'y',
+    data:{labels,datasets:[{label:'N. Linee',data:nV,backgroundColor:labels.map((_,i)=>PAL[i%PAL.length]),borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{ticks:{color:'#7c8399',font:{size:10}},grid:{color:'#2a2f45'}},x:{ticks:{color:'#7c8399',font:{size:10}},grid:{color:'#2a2f45'}}}}});
+}
+
+// ─── HELPERS LINEE ─────────────────────────────────────────────────────────
+function getCtxL(id){if(CHARTS_L[id]){CHARTS_L[id].destroy();delete CHARTS_L[id];}return document.getElementById(id).getContext('2d');}
+function grpL(data,key){return data.reduce((m,r)=>{const k=String(r[key]||'N/D');if(!m[k])m[k]={cap:0,res:0,inc:0,n:0};m[k].cap+=r.capitale||0;m[k].res+=r.residuoCredito||0;m[k].inc+=r.incassi||0;m[k].n++;return m;},{});}
+function sumL(arr,key){return arr.reduce((s,r)=>s+(r[key]||0),0);}
+function tblL(id,headers,rows){
+  let html=`<thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+  rows.forEach(row=>{html+=`<tr>${row.map((cell,ci)=>`<td class="${ci>0?'num':''}">${cell}</td>`).join('')}</tr>`;});
+  document.getElementById(id).innerHTML=html+'</tbody>';
+}
+function mkLnL(id,labels,datasets,opts={}){
+  const ctx=getCtxL(id);
+  CHARTS_L[id]=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+    scales:{x:{ticks:{color:'#7c8399',font:{size:9},maxRotation:35},grid:{color:'#2a2f45'}},y:{ticks:{color:'#7c8399',font:{size:10},callback:opts.yFmt||undefined},grid:{color:'#2a2f45'}}}}});
+}
+function mkCmbL(id,labels,capVals,nVals){
+  const ctx=getCtxL(id);
+  CHARTS_L[id]=new Chart(ctx,{type:'line',data:{labels,datasets:[
+    {label:'Capitale',data:capVals,borderColor:C.blue,backgroundColor:'rgba(79,156,249,.15)',fill:true,tension:.35,pointRadius:5,pointBackgroundColor:C.blue,yAxisID:'y'},
+    {label:'N. Linee',data:nVals,borderColor:C.orange,fill:false,tension:.35,pointRadius:5,pointBackgroundColor:C.orange,yAxisID:'y2',borderDash:[5,3]}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#e8eaf0',font:{size:11}}}},
+      scales:{x:{ticks:{color:'#7c8399',font:{size:9},maxRotation:35},grid:{color:'#2a2f45'}},
+        y:{position:'left',ticks:{color:C.blue,font:{size:10},callback:v=>fM(v)},grid:{color:'#2a2f45'}},
+        y2:{position:'right',ticks:{color:C.orange,font:{size:10}},grid:{display:false}}}}});
+}
+function mkDnutL(id,labels,values,colors){
+  const ctx=getCtxL(id);const bgColors=colors||PAL.slice(0,labels.length);
+  CHARTS_L[id]=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data:values,backgroundColor:bgColors,borderColor:'#0d0f14',borderWidth:2,hoverOffset:8}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{
+      legend:{position:'right',labels:{color:'#e8eaf0',font:{family:'IBM Plex Sans',size:11,weight:'500'},padding:14,boxWidth:12,boxHeight:12,useBorderRadius:true,borderRadius:3,
+        generateLabels:chart=>{const ds=chart.data.datasets[0],tot=ds.data.reduce((a,b)=>a+b,0);
+          return chart.data.labels.map((label,i)=>({text:`${tot?(ds.data[i]/tot*100).toFixed(1):'0.0'}%  ${label}`,fillStyle:ds.backgroundColor[i],strokeStyle:ds.backgroundColor[i],fontColor:'#e8eaf0',lineWidth:0,hidden:false,index:i}));}}},
+      tooltip:{callbacks:{label:ctx=>{const tot=ctx.dataset.data.reduce((a,b)=>a+b,0);return ` ${ctx.label}: ${f0(ctx.parsed)} (${(ctx.parsed/tot*100).toFixed(1)})%`;}}}}}});
+}
+
+function exportCSVLinee(){
+  const ndgSet = toNdgSet(getFilteredLinee());
+  downloadDrillXLSX(ndgSet, 'linee_export');
+}
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════════════════════
+// MOVIMENTAZIONE
+// ══════════════════════════════════════════════════════════════════════════════
+let MOV_PRAT = [];   // array di pratiche con le 4 date aggregate
+let CHARTS_M = {};
+
+function parseMov(allRows, headerIdx){
+  const headers = allRows[headerIdx].map(h => h ? String(h).trim() : '');
+  const dataRows = allRows.slice(headerIdx+1).filter(r => r && r.some(v => v !== null && v !== ''));
+
+  const bc = candidates => {
+    for(const c of candidates){ const i=headers.findIndex(h=>h&&h.toLowerCase()===c.toLowerCase()); if(i>=0)return i; }
+    for(const c of candidates){ const i=headers.findIndex(h=>h&&h.toLowerCase().includes(c.toLowerCase())); if(i>=0)return i; }
+    return -1;
+  };
+
+  const COL_M = {
+    ndgPratica:   bc(['OCS / NDG Pratica','NDG Pratica']),
+    portafoglio:  bc(['Portafoglio']),
+    lotto:        bc(['Lotto']),
+    nominativo:   bc(['Nominativo']),
+    assegnatari:  bc(['Assegnatari']),
+    stato:        bc(['Stato']),
+    area:         bc(['Area geografica']),
+    capitale:     bc(['Capitale iniziale']),
+    residuoCredito: bc(['Residuo credito']),
+    incassi:      bc(['Totale incassi conteggiati','Totale incassi']),
+    dataNota:     bc(['Data ultima nota pratica']),
+    dataScadenza: bc(['Data prossima o ultima scadenza pratica']),
+    dataLav:      bc(['Data ultima lavorazione']),
+  };
+
+  // Aggrega per pratica: prende la data più recente tra tutte le linee
+  const map = new Map();
+  for(const r of dataRows){
+    const ndg = r[COL_M.ndgPratica] ? String(r[COL_M.ndgPratica]).trim() : null;
+    if(!ndg) continue;
+    const nota = parseDate(r[COL_M.dataNota]);
+    const scad = parseDate(r[COL_M.dataScadenza]);
+    const lav  = parseDate(r[COL_M.dataLav]);
+    if(!map.has(ndg)){
+      map.set(ndg, {
+        ndgPratica:  ndg,
+        nominativo:  String(r[COL_M.nominativo]||'').trim().replace(/#[^#]+#/g,'').trim(),
+        portafoglio: String(r[COL_M.portafoglio]||'').trim(),
+        lotto:       String(r[COL_M.lotto]||'').trim(),
+        assegnatario:String(r[COL_M.assegnatari]||'').split(';')[0].trim()||'Non assegnato',
+        assegnatario1:String(r[COL_M.assegnatari]||'').split(';')[0].trim()||'Non assegnato',
+        assegnatario2:(String(r[COL_M.assegnatari]||'').split(';')[1]||'').trim()||'',
+        stato:       String(r[COL_M.stato]||'').trim()||'N/D',
+        area:        String(r[COL_M.area]||'').trim()||'N/D',
+        capitale:    toN(r[COL_M.capitale]),
+        residuoCredito: toN(r[COL_M.residuoCredito]),
+        incassi:     toN(r[COL_M.incassi]),
+        dataNota:    null, dataScadenza:null, dataLav:null,
+      });
+    }
+    const p = map.get(ndg);
+    p.dataNota    = latestDate(p.dataNota,    nota);
+    p.dataScadenza= latestDate(p.dataScadenza, scad);
+    p.dataLav     = latestDate(p.dataLav,     lav);
+  }
+
+  MOV_PRAT = Array.from(map.values()).map(p => {
+    const all = [p.dataNota, p.dataScadenza, p.dataLav].filter(Boolean);
+    const ultimaAttivita = all.length ? all.reduce((a,b)=>a>b?a:b) : null;
+    return {
+      ...p,
+      portafolioLotto: `${p.portafoglio} - ${p.lotto}`,
+      ultimaAttivita,
+      annoNota:     p.dataNota     ? p.dataNota.getFullYear()     : 0,
+      annoScadenza: p.dataScadenza ? p.dataScadenza.getFullYear() : 0,
+      annoLav:      p.dataLav      ? p.dataLav.getFullYear()      : 0,
+      annoUltima:   ultimaAttivita ? ultimaAttivita.getFullYear()  : 0,
+    };
+  });
+}
+
+// ─── FILTRI MOV ────────────────────────────────────────────────────────────
+const FILTER_DEFS_M = [
+  { key:'assegnatario1',    label:'1° Assegnatario' },
+  { key:'assegnatario2',    label:'2° Assegnatario' },
+  { key:'portafolioLotto', label:'Portafoglio-Lotto' },
+  { key:'stato',           label:'Stato' },
+  { key:'area',            label:'Area Geografica' },
+  { key:'annoUltima',      label:'Anno Ultima Attività', fmt: v => v===0?'N/D':String(v) },
+  { key:'annoNota',        label:'Anno Ultima Nota',     fmt: v => v===0?'N/D':String(v) },
+  { key:'annoScadenza',    label:'Anno Scadenza',        fmt: v => v===0?'N/D':String(v) },
+  { key:'annoLav',         label:'Anno Lavorazione',     fmt: v => v===0?'N/D':String(v) },
+];
+let FILTER_STATE_M = {};
+
+function buildFiltersMov(){
+  FILTER_STATE_M = {};
+  FILTER_DEFS_M.forEach(def => { FILTER_STATE_M[def.key] = new Set(); });
+  const bar = document.getElementById('filters-bar-mov');
+  bar.querySelectorAll('.filter-group').forEach(el=>el.remove());
+  const rightBtn = bar.querySelector('.filter-right');
+  FILTER_DEFS_M.forEach(def=>{
+    const vals = getUVM(def.key, def.fmt);
+    if(!vals.length) return;
+    const grp = document.createElement('div');
+    grp.className = 'filter-group';
+    grp.innerHTML = `
+      <button class="filter-btn" id="fbm-${def.key}" onclick="toggleDDM('${def.key}')">
+        <span class="lbl">${def.label}</span><span class="arr">▼</span>
+      </button>
+      <div class="filter-dropdown" id="fdm-${def.key}">
+        <div class="fd-head">
+          <span class="fd-title">${def.label}</span>
+          <div class="fd-acts">
+            <button onclick="selAllM('${def.key}')">Nessuno</button>
+            <button onclick="clrM('${def.key}')">Tutti</button>
+          </div>
+        </div>
+        <div class="fd-opts">
+          ${vals.map(v=>`<label class="fd-opt"><input type="checkbox" data-keym="${def.key}" data-valm="${v.replace(/"/g,'&quot;')}" onchange="onChkM('${def.key}',this.dataset.valm,this.checked)"><span>${v}</span></label>`).join('')}
+        </div>
+      </div>`;
+    bar.insertBefore(grp, rightBtn);
+  });
+}
+
+function getUVM(key, fmt){
+  const s = new Set(MOV_PRAT.map(r=>{ const v=r[key]; const s=fmt?fmt(v):String(v==null?'':v); return s.trim()||'Non assegnato'; }));
+  return [...s].filter(Boolean).sort((a,b)=>{
+    if(a==='Non assegnato') return 1; if(b==='Non assegnato') return -1;
+    const na=Number(a),nb=Number(b); return(!isNaN(na)&&!isNaN(nb))?na-nb:a.localeCompare(b,'it');
+  });
+}
+function toggleDDM(key){
+  const fd=document.getElementById('fdm-'+key), fb=document.getElementById('fbm-'+key);
+  const was=fd.classList.contains('show');
+  document.querySelectorAll('.filter-dropdown').forEach(e=>e.classList.remove('show'));
+  document.querySelectorAll('.filter-btn').forEach(e=>e.classList.remove('open'));
+  if(!was){fd.classList.add('show');fb.classList.add('open');}
+}
+function onChkM(key,val,checked){
+  if(checked)FILTER_STATE_M[key].add(val);else FILTER_STATE_M[key].delete(val);
+  refBtnM(key);refChipsM();applyFiltersMov();
+}
+function selAllM(key){
+  FILTER_STATE_M[key].clear();
+  document.querySelectorAll(`input[data-keym="${key}"]`).forEach(cb=>{cb.checked=false;cb.closest('.fd-opt').classList.remove('is-checked');});
+  refBtnM(key);refChipsM();applyFiltersMov();
+}
+function clrM(key){
+  getUVM(key, FILTER_DEFS_M.find(d=>d.key===key)?.fmt).forEach(v=>FILTER_STATE_M[key].add(v));
+  document.querySelectorAll(`input[data-keym="${key}"]`).forEach(cb=>{cb.checked=true;cb.closest('.fd-opt').classList.add('is-checked');});
+  refBtnM(key);refChipsM();applyFiltersMov();
+}
+function refBtnM(key){
+  const cnt=FILTER_STATE_M[key].size, fb=document.getElementById('fbm-'+key);
+  if(!fb)return;
+  if(cnt===0){fb.classList.remove('active');const c=fb.querySelector('.cnt');if(c)c.remove();}
+  else{fb.classList.add('active');let c=fb.querySelector('.cnt');if(!c){c=document.createElement('span');c.className='cnt';fb.insertBefore(c,fb.querySelector('.arr'));}c.textContent=cnt;}
+}
+function refChipsM(){
+  const bar=document.getElementById('chips-bar-mov');bar.innerHTML='';
+  FILTER_DEFS_M.forEach(def=>{
+    FILTER_STATE_M[def.key].forEach(val=>{
+      const chip=document.createElement('span');chip.className='chip';
+      chip.innerHTML=`<span style="color:var(--dim);font-size:10px">${def.label}:</span> ${val}<button class="chip-x" onclick="rmChipM('${def.key}',this.parentElement.dataset.val)">×</button>`;
+      chip.dataset.val=val; bar.appendChild(chip);
+    });
+  });
+}
+function rmChipM(key,val){
+  FILTER_STATE_M[key].delete(val);
+  const cb=document.querySelector(`input[data-keym="${key}"][data-valm="${val}"]`);
+  if(cb){cb.checked=false;cb.closest('.fd-opt').classList.remove('is-checked');}
+  refBtnM(key);refChipsM();applyFiltersMov();
+}
+function getFilteredMov(){
+  return MOV_PRAT.filter(r=>FILTER_DEFS_M.every(def=>{
+    if(FILTER_STATE_M[def.key].size===0) return true;
+    const raw = def.fmt ? def.fmt(r[def.key]) : String(r[def.key]==null?'':r[def.key]);
+    const v = raw.trim() || 'Non assegnato';
+    return FILTER_STATE_M[def.key].has(v);
+  }));
+}
+function applyFiltersMov(){ updateAllMov(getFilteredMov()); hookAllDblClicks(); }
+function resetFiltersMov(){
+  FILTER_DEFS_M.forEach(def=>{
+    FILTER_STATE_M[def.key].clear();
+    document.querySelectorAll(`input[data-keym="${def.key}"]`).forEach(cb=>{cb.checked=false;cb.closest('.fd-opt').classList.remove('is-checked');});
+    refBtnM(def.key);
+  });
+  refChipsM(); applyFiltersMov();
+}
+
+// ─── INIT MOV ──────────────────────────────────────────────────────────────
+function initMov(){
+  buildFiltersMov();
+  document.getElementById('info-bar-mov').innerHTML =
+    `Pratiche elaborate: <strong>${MOV_PRAT.length}</strong> — date aggregate per pratica (valore più recente tra le linee)`;
+  updateAllMov(getFilteredMov());
+}
+
+function updateAllMov(d){
+  updateKPIMov(d);
+  updateAnnoMov(d,'annoUltima','tbl-m-ult-att','chart-m-ult-att','Ultima Attività','Anno');
+  updateAnnoMov(d,'annoNota','tbl-m-nota','chart-m-nota','Ultima Nota','Anno');
+  updateAnnoMov(d,'annoScadenza','tbl-m-scad','chart-m-scad','Scadenza','Anno');
+  updateAnnoMov(d,'annoLav','tbl-m-lav','chart-m-lav','Ultima Lavorazione','Anno');
+  updateDettaglioMov(d);
+}
+
+function updateKPIMov(d){
+  const conNota  = d.filter(p=>p.dataNota).length;
+  const conScad  = d.filter(p=>p.dataScadenza).length;
+  const conLav   = d.filter(p=>p.dataLav).length;
+  const conUltima= d.filter(p=>p.ultimaAttivita).length;
+  document.getElementById('kpi-strip-mov').innerHTML=`
+    <div class="kpi-card blue"><div class="kpi-label">N. Pratiche</div><div class="kpi-value">${f0(d.length)}</div><div class="kpi-sub">pratiche totali</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Con Ultima Attività</div><div class="kpi-value">${f0(conUltima)}</div><div class="kpi-sub">${d.length?(conUltima/d.length*100).toFixed(0)+'%':'-'} del totale</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">Con Ultima Nota</div><div class="kpi-value">${f0(conNota)}</div><div class="kpi-sub">${d.length?(conNota/d.length*100).toFixed(0)+'%':'-'} del totale</div></div>
+    <div class="kpi-card yellow"><div class="kpi-label">Con Scadenza</div><div class="kpi-value">${f0(conScad)}</div><div class="kpi-sub">${d.length?(conScad/d.length*100).toFixed(0)+'%':'-'} del totale</div></div>
+    <div class="kpi-card purple" style="--c:var(--purple)"><div class="kpi-label">Con Lavorazione</div><div class="kpi-value">${f0(conLav)}</div><div class="kpi-sub">${d.length?(conLav/d.length*100).toFixed(0)+'%':'-'} del totale</div></div>`;
+}
+
+function updateAnnoMov(d, annoKey, tblId, chartId, label, colLabel){
+  const grp = {};
+  for(const p of d){
+    const k = p[annoKey]===0 ? 'N/D' : String(p[annoKey]);
+    if(!grp[k]) grp[k]={n:0};
+    grp[k].n++;
+  }
+  const entries = Object.entries(grp).sort((a,b)=>{
+    if(a[0]==='N/D') return 1; if(b[0]==='N/D') return -1;
+    return Number(a[0])-Number(b[0]);
+  });
+  const tot = d.length;
+
+  // Tabella
+  let html=`<thead><tr><th>${colLabel}</th><th class="num">N. Pratiche</th><th class="num">%</th></tr></thead><tbody>`;
+  for(const [k,v] of entries){
+    const pct = tot?(v.n/tot*100).toFixed(1):'0.0';
+    html+=`<tr><td>${k}</td><td class="num">${f0(v.n)}</td><td class="num">${pct}%</td></tr>`;
+  }
+  html+=`<tr><td>Totale</td><td class="num">${f0(tot)}</td><td class="num">100%</td></tr></tbody>`;
+  document.getElementById(tblId).innerHTML=html;
+
+  // Grafico barre
+  const ctx = getCtxM(chartId);
+  const colorMap={'2025':C.blue,'2026':C.green,'2024':C.yellow,'2023':C.orange,'2022':C.purple,'N/D':C.gray};
+  CHARTS_M[chartId]=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels: entries.map(e=>e[0]),
+      datasets:[{
+        label:`N. Pratiche`,
+        data: entries.map(e=>e[1].n),
+        backgroundColor: entries.map(e=>colorMap[e[0]]||PAL[Object.keys(colorMap).length%PAL.length]),
+        borderRadius:4
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>{
+          const pct=(ctx.parsed.y/tot*100).toFixed(1);
+          return ` ${f0(ctx.parsed.y)} pratiche (${pct}%)`;
+        }}}},
+      scales:{
+        x:{ticks:{color:'#7c8399',font:{size:10}},grid:{color:'#2a2f45'}},
+        y:{ticks:{color:'#7c8399',font:{size:10}},grid:{color:'#2a2f45'}}
+      }
+    }
+  });
+}
+
+function updateDettaglioMov(d){
+  const fmtD = dt => dt ? dt.toLocaleDateString('it-IT') : '—';
+  let html=`<thead><tr>
+    <th>NDG Pratica</th><th>Nominativo</th><th>Portafoglio-Lotto</th><th>Assegnatario</th><th>Stato</th>
+    <th class="num">Ultima Nota</th><th class="num">Ultima Scadenza</th><th class="num">Ultima Lavorazione</th>
+    <th class="num" style="color:var(--accent3)">Ultima Attività</th>
+  </tr></thead><tbody>`;
+  for(const p of d){
+    const ua = p.ultimaAttivita;
+    const style = ua ? (ua.getFullYear()<new Date().getFullYear()-1?'color:var(--red)':ua.getFullYear()<new Date().getFullYear()?'color:var(--accent4)':'') : '';
+    html+=`<tr>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:11px">${p.ndgPratica}</td>
+      <td>${p.nominativo}</td>
+      <td style="font-size:11px">${p.portafolioLotto}</td>
+      <td style="font-size:11px">${p.assegnatario1}${p.assegnatario2?' / '+p.assegnatario2:''}</td>
+      <td style="font-size:11px">${p.stato}</td>
+      <td class="num">${fmtD(p.dataNota)}</td>
+      <td class="num">${fmtD(p.dataScadenza)}</td>
+      <td class="num">${fmtD(p.dataLav)}</td>
+      <td class="num" style="font-weight:700;${style}">${fmtD(ua)}</td>
+    </tr>`;
+  }
+  html+=`</tbody>`;
+  document.getElementById('tbl-m-dettaglio').innerHTML=html;
+}
+
+function getCtxM(id){
+  if(CHARTS_M[id]){CHARTS_M[id].destroy();delete CHARTS_M[id];}
+  return document.getElementById(id).getContext('2d');
+}
+
+function exportCSVMov(){
+  const ndgSet = toNdgSet(getFilteredMov());
+  downloadDrillXLSX(ndgSet, 'movimentazione_export');
+}
+
+// ─── SALVA SNAPSHOT ────────────────────────────────────────────────────────
+function saveSnapshot(){
+  if(!RAW_EXCEL_B64){ alert('Nessun file caricato.'); return; }
+
+  const suggested = (document.getElementById('header-file').textContent || 'cruscotto')
+    .replace(/\.xlsx?$/i,'').trim();
+  const today = new Date().toLocaleDateString('it-IT').replace(/\//g,'.');
+  const nome = prompt('Nome file (senza .html):', `${today} - ${suggested}`);
+  if(!nome) return;
+
+  const srcName = document.getElementById('header-file').textContent;
+
+  // Usa il sorgente HTML originale (pulito, senza stato DOM corrente)
+  // e rimuove eventuali snapshot precedenti già embedded
+  let cleanSrc = HTML_SOURCE.replace(/<script id="__snapshot_data__">[\s\S]*?<\/script>\n?/g, '');
+
+  const autoload = `<script id="__snapshot_data__">
+window.__SNAPSHOT__ = {
+  b64: "${RAW_EXCEL_B64}",
+  srcName: ${JSON.stringify(srcName)}
+};
+<\/script>`;
+
+  const snapshotHtml = cleanSrc.replace(/<body>/, `<body>\n${autoload}`);
+
+  const blob = new Blob([snapshotHtml], {type:'text/html;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${nome.replace(/[\\/:*?"<>|]/g,'_')}.html`;
+  a.click();
+
+  const msg = document.createElement('div');
+  msg.textContent = `💾 Salvato: ${a.download}`;
+  Object.assign(msg.style, {position:'fixed',bottom:'24px',right:'24px',background:'var(--accent3)',
+    color:'#0d0f14',padding:'10px 18px',borderRadius:'8px',fontSize:'13px',fontWeight:'600',
+    zIndex:'9999',fontFamily:"'IBM Plex Sans',sans-serif",boxShadow:'0 4px 16px rgba(0,0,0,.4)'});
+  document.body.appendChild(msg);
+  setTimeout(()=>msg.remove(), 3500);
+}
+
+function show(id){
+  ['upload-section','loading','dashboard','dashboard-linee','dashboard-mov'].forEach(s=>{
+    const el=document.getElementById(s);
+    if(el) el.style.display=s===id?(s==='loading'?'flex':'block'):'none';
+  });
+}
+
+function resetApp(){
+  Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(e){}});
+  Object.values(CHARTS_L).forEach(c=>{try{c.destroy()}catch(e){}});
+  Object.values(CHARTS_M).forEach(c=>{try{c.destroy()}catch(e){}});
+  CHARTS={}; CHARTS_L={}; CHARTS_M={};
+  RAW=[]; PRAT=[]; LINEE=[]; MOV_PRAT=[];
+  RAW_HEADERS_LINEE=[]; RAW_ROWS_LINEE=[]; RAW_NDG_COL=-1; RAW_EXCEL_B64='';
+  // Rimuove il flag dblHooked da tutti i canvas così si riaganciano al prossimo load
+  document.querySelectorAll('canvas').forEach(c=>{ delete c._dblHooked; });
+  document.getElementById('nav-tabs').style.display='none';
+  document.getElementById('header-actions').style.display='none';
+  fileInput.value='';
+  show('upload-section');
+}
+</script>
+</body>
+</html>
